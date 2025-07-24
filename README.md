@@ -1,1 +1,2 @@
-# moneystar-api
+# MoneyStar API
+## Powered by: FastAPI & Supabase
