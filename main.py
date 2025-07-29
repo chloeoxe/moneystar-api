@@ -1,6 +1,6 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
-from crud import insert_transaction
+from crud import insert_transaction, delete_transaction_by_id
 from database import create_supabase_client
 from models import Transaction, TransactionCreate
 
@@ -28,5 +28,13 @@ async def create_transaction(transaction: TransactionCreate):
         return res
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.delete("/transaction/{transaction_id}")
+async def delete_transaction(transaction_id: str):
+    try:
+        response = delete_transaction_by_id(transaction_id)
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -24,3 +24,13 @@ def insert_transaction(transaction: TransactionCreate) -> dict[str, Any]:
         return res.data[0]
     except Exception as e:
         raise Exception(f"Error creating transaction: {str(e)}")
+    
+def delete_transaction_by_id(transaction_id: str) -> dict[str, Any]:
+    try:
+        response = client.table("transactions").delete().eq("id", transaction_id).execute()
+        if len(response.data) == 0:
+            raise ValueError(f"Transaction with id={transaction_id} not found")
+        
+        return {"message": f"Transaction with id={transaction_id} deleted successfully"}
+    except Exception as e:
+        raise Exception(f"Error deleting transaction: {str(e)}")
