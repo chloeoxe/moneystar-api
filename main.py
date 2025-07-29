@@ -1,5 +1,6 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from crud import insert_transaction, delete_transaction_by_id
 from database import create_supabase_client
 from models import Transaction, TransactionCreate
@@ -7,6 +8,16 @@ from models import Transaction, TransactionCreate
 app = FastAPI()
 
 supabase = create_supabase_client()
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Your Next.js dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
