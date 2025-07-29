@@ -1,7 +1,7 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transaction_create, transaction_update, delete_transaction_by_id, transactions_read
+from crud import transaction_create, transaction_update, delete_transaction_by_id, transactions_read, get_portfolio_linechart_data
 from database import create_supabase_client
 from models import Transaction, TransactionCreate, TransactionUpdate
 from typing import List
@@ -56,5 +56,13 @@ async def delete_transaction(transaction_id: str):
     try:
         response = delete_transaction_by_id(transaction_id)
         return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/portfolio/linechart")
+async def get_portfolio_linechart():
+    try:
+        data = get_portfolio_linechart_data()
+        return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

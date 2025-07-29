@@ -1,5 +1,5 @@
-from datetime import date
-from typing import Any
+from datetime import date, timedelta
+from typing import List, Dict, Any
 from models import TransactionCreate, TransactionUpdate
 from database import client
 
@@ -57,3 +57,35 @@ def delete_transaction_by_id(transaction_id: str) -> dict[str, Any]:
         return {"message": f"Transaction with id={transaction_id} deleted successfully"}
     except Exception as e:
         raise Exception(f"Error deleting transaction: {str(e)}")
+
+def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
+    # Fetch all transactions
+    response = client.table("transactions").select("*").execute()
+
+    transactions = response.data
+
+    if not transactions:
+        return []
+
+    # Find the earliest transaction date
+    earliest_date = min(date.fromisoformat(t["transaction_date"]) for t in transactions)
+    today = date.today()
+
+    # Build list of dates from earliest date to today
+    num_days = (today - earliest_date).days + 1
+    all_dates = [earliest_date + timedelta(days=i) for i in range(num_days)]
+
+    # For each date, compute total portfolio value
+    chart_data = []
+    for d in all_dates:
+        total_value = sum(
+            t["quantity"] * t["price"]
+            for t in transactions
+            if date.fromisoformat(t["transaction_date"]) <= d
+        )
+        chart_data.append({
+            "date": d.isoformat(),
+            "value": total_value
+        })
+
+    return chart_data
