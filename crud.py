@@ -5,14 +5,10 @@ from database import create_supabase_client
 
 client = create_supabase_client()
 
-def get_all_transactions() -> List[Dict[str, Any]]:
+def transactions_read() -> List[Dict[str, Any]]:
     response = client.table("transactions").select("*").execute()
     if not response.data:
         return []
-    return response.data
-
-def transactions_read() -> list[dict[str, Any]]:
-    response = client.table("transactions").select("*", count="exact").execute()
     return response.data
 
 def transaction_create(transaction: TransactionCreate) -> dict[str, Any]:
