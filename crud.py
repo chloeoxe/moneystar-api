@@ -1,7 +1,15 @@
 from datetime import date, timedelta
 from typing import List, Dict, Any
 from models import TransactionCreate, TransactionUpdate
-from database import client
+from database import create_supabase_client
+
+client = create_supabase_client()
+
+def get_all_transactions() -> List[Dict[str, Any]]:
+    response = client.table("transactions").select("*").execute()
+    if not response.data:
+        return []
+    return response.data
 
 def transactions_read() -> list[dict[str, Any]]:
     response = client.table("transactions").select("*", count="exact").execute()
@@ -89,3 +97,9 @@ def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
         })
 
     return chart_data
+
+def get_historical_prices() -> List[Dict[str, Any]]:
+    response = client.table("prices").select("*").execute()
+    if not response.data:
+        return []
+    return response.data

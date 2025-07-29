@@ -1,14 +1,9 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transaction_create, transaction_update, delete_transaction_by_id, transactions_read, get_portfolio_linechart_data
-from database import create_supabase_client
+from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices
 from models import Transaction, TransactionCreate, TransactionUpdate
 from typing import List
-
-app = FastAPI()
-
-supabase = create_supabase_client()
 
 app = FastAPI()
 
@@ -27,11 +22,10 @@ async def root():
 @app.get("/transactions", response_model=List[Transaction])
 async def read_transactions():
     try:
-        transactions = transactions_read()
-        return transactions
+        response = transactions_read()
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/transaction", response_model=Transaction)
 async def create_transaction(transaction: TransactionCreate):
@@ -64,5 +58,13 @@ async def get_portfolio_linechart():
     try:
         data = get_portfolio_linechart_data()
         return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/prices")
+async def get_prices():
+    try:
+        response = get_historical_prices()
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

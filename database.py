@@ -10,5 +10,3 @@ api_key = os.environ.get("API_KEY")
 def create_supabase_client():
     supabase: Client = create_client(proj_url, api_key)
     return supabase
-
-client = create_supabase_client()
