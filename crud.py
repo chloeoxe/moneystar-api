@@ -93,3 +93,9 @@ def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
         })
 
     return chart_data
+
+def get_historical_prices() -> List[Dict[str, Any]]:
+    response = client.table("prices").select("*").execute()
+    if not response.data:
+        return []
+    return response.data
