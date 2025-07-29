@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from datetime import date
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from crud import insert_transaction
 from database import create_supabase_client
+from models import Transaction, TransactionCreate
 
 app = FastAPI()
 
@@ -28,3 +31,13 @@ async def get_transactions():
         .execute()
     )
     return response
+
+@app.post("/transaction", response_model=Transaction)
+async def create_transaction(transaction: TransactionCreate):
+    try:
+        res = insert_transaction(transaction)
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
