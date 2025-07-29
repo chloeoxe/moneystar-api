@@ -3,6 +3,10 @@ from typing import Any
 from models import TransactionCreate, TransactionUpdate
 from database import client
 
+def transactions_read() -> list[dict[str, Any]]:
+    response = client.table("transactions").select("*", count="exact").execute()
+    return response.data
+
 def transaction_create(transaction: TransactionCreate) -> dict[str, Any]:
     try:
         if transaction.quantity == 0:

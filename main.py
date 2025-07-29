@@ -1,9 +1,10 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transaction_create, transaction_update, delete_transaction_by_id
+from crud import transaction_create, transaction_update, delete_transaction_by_id, transactions_read
 from database import create_supabase_client
 from models import Transaction, TransactionCreate, TransactionUpdate
+from typing import List
 
 app = FastAPI()
 
@@ -23,14 +24,14 @@ app.add_middleware(
 async def root():
     return {"message": "Hello, this is MoneyStar's API!"}
 
-@app.get("/transactions")
-async def get_transactions():
-    response = (
-        supabase.table("transactions")
-        .select("*", count="exact")
-        .execute()
-    )
-    return response
+@app.get("/transactions", response_model=List[Transaction])
+async def read_transactions():
+    try:
+        transactions = transactions_read()
+        return transactions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/transaction", response_model=Transaction)
 async def create_transaction(transaction: TransactionCreate):
