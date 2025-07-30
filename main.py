@@ -1,7 +1,7 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices
+from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices, get_portfolio_distribution_data
 from models import Transaction, TransactionCreate, TransactionUpdate
 from typing import List
 
@@ -65,6 +65,14 @@ async def get_portfolio_linechart():
 async def get_prices():
     try:
         response = get_historical_prices()
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/portfolio/distribution")
+async def get_portfolio_distribution():
+    try:
+        response = get_portfolio_distribution_data()
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

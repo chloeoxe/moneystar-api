@@ -2,6 +2,8 @@ from datetime import date, timedelta
 from typing import List, Dict, Any
 from models import TransactionCreate, TransactionUpdate
 from database import create_supabase_client
+from live_prices import fetch_live_price
+import pandas as pd 
 
 client = create_supabase_client()
 
@@ -99,3 +101,30 @@ def get_historical_prices() -> List[Dict[str, Any]]:
     if not response.data:
         return []
     return response.data
+
+def get_portfolio_distribution_data():
+    response = client.table("transactions").select("*").execute()
+    if not response.data:
+        return []
+    
+    transactions = response.data
+    
+    total_ticker_quantities = {}
+    for transaction in transactions:
+        total_ticker_quantities[transaction["ticker"]] = total_ticker_quantities.get(transaction["ticker"], 0) + transaction["quantity"]
+     
+    total_ticker_quantities = {k: v for k, v in total_ticker_quantities.items() if v > 0}
+    
+    total_ticker_price = {}
+    for ticker, quantity in total_ticker_quantities.items():
+        try:
+            price = fetch_live_price(ticker)
+            total_ticker_price[ticker] = round(price * quantity, 2)
+        except ValueError as e:
+            raise ValueError(f"Error fetching price for {ticker}: {e}")
+    
+    chart_data = [{"ticker": ticker, "value": value} for ticker, value in total_ticker_price.items()]
+    df = pd.DataFrame(chart_data)
+    chart_data = df.sort_values(by='value', ascending=False).head(5).to_dict(orient='records')
+    
+    return chart_data
