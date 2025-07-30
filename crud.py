@@ -3,6 +3,7 @@ import random
 
 from datetime import date, timedelta
 from typing import List, Dict, Any
+from live_prices import fetch_live_price
 from models import TransactionCreate, TransactionUpdate
 from database import create_supabase_client
 
@@ -124,9 +125,7 @@ def portfolio_calc() -> List[Dict[str, Any]]:
 
     processed = pd.merge(total_qty, avg_price[['ticker', 'avg_price']], on=['ticker'], how='left')
     
-    # Simulate live price and calculate deltas
-    # TODO: Replace with actual live price fetching logic
-    processed['live_price'] = processed['avg_price'] * random.uniform(0.9, 1.1)
+    processed['live_price'] = processed['ticker'].apply(lambda x: fetch_live_price(x) if x else 0)
     processed['price_delta'] = processed['live_price'] - processed['avg_price']
     processed['pct_delta'] = processed['price_delta'] / processed['avg_price']
     processed['pnl'] = processed['price_delta'] * processed['quantity']
