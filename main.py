@@ -1,8 +1,8 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices
-from models import Transaction, TransactionCreate, TransactionUpdate
+from crud import portfolio_calc, transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices
+from models import Position, Transaction, TransactionCreate, TransactionUpdate
 from typing import List
 
 app = FastAPI()
@@ -18,6 +18,14 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"message": "Hello, this is MoneyStar's API!"}
+
+@app.get("/portfolio", response_model=List[Position])
+async def read_portfolio():
+    try:
+        response = portfolio_calc()
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/transactions", response_model=List[Transaction])
 async def read_transactions():

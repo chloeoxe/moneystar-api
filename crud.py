@@ -1,3 +1,6 @@
+import pandas as pd
+import random
+
 from datetime import date, timedelta
 from typing import List, Dict, Any
 from models import TransactionCreate, TransactionUpdate
@@ -99,3 +102,33 @@ def get_historical_prices() -> List[Dict[str, Any]]:
     if not response.data:
         return []
     return response.data
+
+def portfolio_calc() -> List[Dict[str, Any]]:
+    response = client.table("transactions").select("*").execute()
+    if not response.data:
+        return []
+
+    df = pd.DataFrame(response.data)
+
+    total_qty = df.groupby(['ticker', 'name'])['quantity'].sum().reset_index(name="quantity")
+
+    buys = df[df['quantity'] > 0].copy()
+    buys['weighted_price'] = buys['price'] * buys['quantity']
+
+    avg_price = (
+        buys.groupby(['ticker', 'name'])
+        .agg(total_bought_qty=('quantity', 'sum'), total_weighted_price=('weighted_price', 'sum'))
+        .reset_index()
+    )
+    avg_price['avg_price'] = avg_price['total_weighted_price'] / avg_price['total_bought_qty'].round(2)
+
+    processed = pd.merge(total_qty, avg_price[['ticker', 'avg_price']], on=['ticker'], how='left')
+    
+    # Simulate live price and calculate deltas
+    # TODO: Replace with actual live price fetching logic
+    processed['live_price'] = processed['avg_price'] * random.uniform(0.9, 1.1)
+    processed['price_delta'] = processed['live_price'] - processed['avg_price']
+    processed['pct_delta'] = processed['price_delta'] / processed['avg_price']
+    processed['pnl'] = processed['price_delta'] * processed['quantity']
+
+    return processed.to_dict(orient='records')
