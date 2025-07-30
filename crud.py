@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from typing import List, Dict, Any
 from models import TransactionCreate, TransactionUpdate
 from database import create_supabase_client
-from live_prices import fetch_live_price
+from live_prices import fetch_live_price, fetch_historical_prices
 import pandas as pd 
 
 client = create_supabase_client()
@@ -102,7 +102,7 @@ def get_historical_prices() -> List[Dict[str, Any]]:
         return []
     return response.data
 
-def get_portfolio_distribution_data():
+def get_portfolio_distribution_data() -> List[Dict[str, Any]]:
     response = client.table("transactions").select("*").execute()
     if not response.data:
         return []
@@ -128,3 +128,24 @@ def get_portfolio_distribution_data():
     chart_data = df.sort_values(by='value', ascending=False).head(5).to_dict(orient='records')
     
     return chart_data
+
+def get_top_holdings_performance_data() -> List[Dict[str, Any]]:
+    # Obtains the top 5 holdings computed in the get_portfolio_distribution_data function
+    total_ticker_price = get_portfolio_distribution_data()
+    if not total_ticker_price:
+        return []   
+    
+    today = pd.Timestamp.today().normalize()
+    close_window = today - pd.DateOffset(months=1)
+    start_window = close_window - pd.DateOffset(days=5) # buffer for market closing
+    close_window = str(close_window)[:10]
+    start_window = str(start_window)[:10]
+    
+    # Fetch live prices and historical prices for the top holdings
+    for item in total_ticker_price:
+        value = round(fetch_live_price(item['ticker']), 2)
+        prev_value = round(fetch_historical_prices(item['ticker'], start_window, close_window)[0], 2)
+        item['prev_value'] = prev_value
+        item['value'] = value
+    
+    return total_ticker_price
