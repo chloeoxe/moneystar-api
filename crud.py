@@ -1,5 +1,9 @@
+import pandas as pd
+import random
+
 from datetime import date, timedelta
 from typing import List, Dict, Any
+from live_prices import fetch_live_price
 from models import TransactionCreate, TransactionUpdate
 from database import create_supabase_client
 from live_prices import fetch_live_price, fetch_historical_prices
@@ -149,3 +153,31 @@ def get_top_holdings_performance_data() -> List[Dict[str, Any]]:
         item['value'] = value
     
     return total_ticker_price
+  
+def portfolio_calc() -> List[Dict[str, Any]]:
+    response = client.table("transactions").select("*").execute()
+    if not response.data:
+        return []
+
+    df = pd.DataFrame(response.data)
+
+    total_qty = df.groupby(['ticker', 'name'])['quantity'].sum().reset_index(name="quantity")
+
+    buys = df[df['quantity'] > 0].copy()
+    buys['weighted_price'] = buys['price'] * buys['quantity']
+
+    avg_price = (
+        buys.groupby(['ticker', 'name'])
+        .agg(total_bought_qty=('quantity', 'sum'), total_weighted_price=('weighted_price', 'sum'))
+        .reset_index()
+    )
+    avg_price['avg_price'] = avg_price['total_weighted_price'] / avg_price['total_bought_qty'].round(2)
+
+    processed = pd.merge(total_qty, avg_price[['ticker', 'avg_price']], on=['ticker'], how='left')
+    
+    processed['live_price'] = processed['ticker'].apply(lambda x: fetch_live_price(x) if x else 0)
+    processed['price_delta'] = processed['live_price'] - processed['avg_price']
+    processed['pct_delta'] = processed['price_delta'] / processed['avg_price']
+    processed['pnl'] = processed['price_delta'] * processed['quantity']
+
+    return processed.to_dict(orient='records')
