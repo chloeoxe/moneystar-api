@@ -132,39 +132,47 @@ async def fetch_live_prices(tickers: list[str]) -> list[TickerPrice]:
         # Raise exception if entire batch request fails
         raise Exception(f"[yfinance] Live prices batch request failed: {str(e)}")
 
-def get_portfolio_distribution_data() -> List[Dict[str, Any]]:
+async def get_all_portfolio_prices_and_values() -> pd.DataFrame:
+    """Obtains the current portfolio live prices and values (quantity * prices) for each ticker.
+
+    Returns:
+        pd.DataFrame: Returns a DataFrame with tickers, quantities, live prices, and values (quantity * prices) of the portfolio.
+    """
     response = client.table("transactions").select("*").execute()
     if not response.data:
         return []
-    
-    transactions = response.data
-    
-    # Calculate total quantity for each ticker
-    total_ticker_quantities = {}
-    for transaction in transactions:
-        total_ticker_quantities[transaction["ticker"]] = total_ticker_quantities.get(transaction["ticker"], 0) + transaction["quantity"]
-     
-    total_ticker_quantities = {k: v for k, v in total_ticker_quantities.items() if v > 0}
-    
-    total_ticker_price = {}
-    for ticker, quantity in total_ticker_quantities.items():
-        try:
-            price = fetch_live_price(ticker)
-            total_ticker_price[ticker] = round(price * quantity, 2)
-        except ValueError as e:
-            raise ValueError(f"Error fetching price for {ticker}: {e}")
-    
-    chart_data = [{"ticker": ticker, "value": value} for ticker, value in total_ticker_price.items()]
-    df = pd.DataFrame(chart_data)
-    chart_data = df.sort_values(by='value', ascending=False).head(5).to_dict(orient='records')
-    
-    return chart_data
+    transactions = pd.DataFrame(response.data)
 
-def get_top_holdings_performance_data() -> List[Dict[str, Any]]:
-    # Obtains the top 5 holdings computed in the get_portfolio_distribution_data function
-    total_ticker_price = get_portfolio_distribution_data()
-    if not total_ticker_price:
-        return []   
+    # Calculate total quantity for each ticker
+    ticker_quantities = transactions.groupby("ticker")["quantity"].sum()
+    ticker_quantities = ticker_quantities[ticker_quantities > 0]
+    
+    # Fetch live prices for each ticker
+    tickers = ticker_quantities.index.tolist()
+    prices = await fetch_live_prices(tickers)
+    price_data = pd.DataFrame([{"ticker": p.ticker, "price": p.price} for p in prices])
+    price_data.set_index("ticker", inplace=True)
+
+    # Calculate total value held for each ticker
+    df = pd.DataFrame(ticker_quantities).join(price_data)
+    df["value"] = df["quantity"] * df["price"]
+    
+    return df.reset_index()
+
+async def get_portfolio_distribution_data() -> List[Dict[str, Any]]:
+    df = await get_all_portfolio_prices_and_values()
+    
+    # Obtain the top 5 holdings by total value
+    df = df.sort_values(by="value", ascending=False).head(5).reset_index()
+    return df[["ticker", "value"]].to_dict(orient="records")
+
+async def get_all_portfolio_prices_and_values_including_last_month() -> pd.DataFrame:
+    """Obtains the current portfolio live prices and values (quantity * prices) for each ticker, along with last month's prices.
+
+    Returns:
+        pd.DataFrame: Returns a DataFrame with tickers, quantities, live prices, and values (quantity * prices) of the portfolio and last month's prices and value.
+    """
+    df = await get_all_portfolio_prices_and_values()
     
     today = pd.Timestamp.today().normalize()
     close_window = today - pd.DateOffset(months=1)
@@ -172,15 +180,23 @@ def get_top_holdings_performance_data() -> List[Dict[str, Any]]:
     close_window = str(close_window)[:10]
     start_window = str(start_window)[:10]
     
-    # Fetch live prices and historical prices for the top holdings
-    for item in total_ticker_price:
-        value = round(fetch_live_price(item['ticker']), 2)
-        prev_value = round(fetch_historical_prices(item['ticker'], start_window, close_window)[0], 2)
-        item['prev_value'] = prev_value
-        item['value'] = value
+    # TODO: Migrate to fetch from historical prices table
+    # Currently fetching hisotrical prices directly from yfinance
+    from live_prices import fetch_historical_prices
+    df["prev_price"] = df["ticker"].astype(object).apply(lambda x: round(float(fetch_historical_prices(x, start_window, close_window)[0] if x else 0), 2))
+    return df
+
+async def get_top_holdings_performance_data() -> List[Dict[str, Any]]:
+    df = await get_all_portfolio_prices_and_values_including_last_month()
     
-    return total_ticker_price
-  
+    df = df.sort_values(by="value", ascending=False).head(5).reset_index()
+    df["fixed_change"] = round(df["price"] - df["prev_price"], 2)
+    df["percentage_change"] = round(df["fixed_change"] / df["prev_price"].replace(0, 1) * 100, 2)
+    df = df.drop('value', axis=1)
+    
+    df = df.rename(columns={'price': 'value', 'prev_price': 'prev_value'})
+    return df[["ticker", "value", "prev_value", "fixed_change", "percentage_change"]].to_dict(orient="records")
+
 def portfolio_calc() -> List[Dict[str, Any]]:
     response = client.table("transactions").select("*").execute()
     if not response.data:
@@ -209,37 +225,10 @@ def portfolio_calc() -> List[Dict[str, Any]]:
 
     return processed.to_dict(orient='records')
 
-def get_overall_portfolio_month_change() -> Dict[str, float]:
-    response = client.table("transactions").select("*").execute()
-    if not response.data:
-        return []
+async def get_overall_portfolio_month_change() -> Dict[str, float]:
+    df = await get_all_portfolio_prices_and_values_including_last_month()
     
-    transactions = response.data
+    df["prev_value"] = df["prev_price"] * df["quantity"]
+    totals = df.sum()
     
-    # Calculate total quantity for each ticker
-    total_ticker_quantities = {}
-    for transaction in transactions:
-        total_ticker_quantities[transaction["ticker"]] = total_ticker_quantities.get(transaction["ticker"], 0) + transaction["quantity"]
-     
-    total_ticker_quantities = {k: v for k, v in total_ticker_quantities.items() if v > 0}
-    
-    this_month_portfolio_value, last_month_portfolio_value = 0, 0
-    for ticker, quantity in total_ticker_quantities.items():
-        try:
-            # Fetch live price for each ticker
-            price = fetch_live_price(ticker)
-            this_month_portfolio_value += round(price * quantity, 2)
-            
-            # Fetch historical prices for the last month
-            today = pd.Timestamp.today().normalize()
-            close_window = today - pd.DateOffset(months=1)
-            start_window = close_window - pd.DateOffset(days=5) # buffer for market closing
-            close_window = str(close_window)[:10]
-            start_window = str(start_window)[:10]
-            
-            last_month_portfolio_value += round(fetch_historical_prices(ticker, start_window, close_window)[0] * quantity, 2)
-    
-        except ValueError as e:
-            raise ValueError(f"Error fetching price for {ticker}: {e}")
-    
-    return {"value": this_month_portfolio_value, "prev_value": last_month_portfolio_value}
+    return {"value": float(totals["value"]), "prev_value": float(totals["prev_value"])}
