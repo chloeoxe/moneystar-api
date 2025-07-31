@@ -1,13 +1,10 @@
-import pandas as pd
 import random
-
 from datetime import date, timedelta
 from typing import List, Dict, Any
-from live_prices import fetch_live_price
-from models import TransactionCreate, TransactionUpdate
+from models import TransactionCreate, TransactionUpdate, TickerPrice
 from database import create_supabase_client
-from live_prices import fetch_live_price, fetch_historical_prices
-import pandas as pd 
+import yfinance as yf
+import pandas as pd
 
 client = create_supabase_client()
 
@@ -105,6 +102,35 @@ def get_historical_prices() -> List[Dict[str, Any]]:
     if not response.data:
         return []
     return response.data
+
+async def fetch_live_prices(tickers: list[str]) -> list[TickerPrice]:
+    try:
+        data = yf.download(
+            tickers=tickers,
+            period="1d",
+            interval="1m",
+            progress=False,
+            threads=True,
+            auto_adjust=True
+        )
+
+        results = []
+
+        if isinstance(data.columns, pd.MultiIndex):
+            # Add latest closing price for each ticker into results
+            for ticker in tickers:
+                try:
+                    price_series = data[("Close", ticker)]
+                    price = price_series.dropna().iloc[-1] if not price_series.dropna().empty else None
+                    results.append(TickerPrice(ticker=ticker, price=round(price, 2) if price else None))
+                except Exception as e:
+                    results.append(TickerPrice(ticker=ticker, price=None))
+
+        return results
+
+    except Exception as e:
+        # Raise exception if entire batch request fails
+        raise Exception(f"[yfinance] Live prices batch request failed: {str(e)}")
 
 def get_portfolio_distribution_data() -> List[Dict[str, Any]]:
     response = client.table("transactions").select("*").execute()
