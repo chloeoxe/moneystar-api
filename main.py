@@ -1,8 +1,8 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices
-from models import Transaction, TransactionCreate, TransactionUpdate
+from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices, fetch_live_prices
+from models import Transaction, TransactionCreate, TransactionUpdate, TickersRequest, TickerPrice
 from typing import List
 
 app = FastAPI()
@@ -66,5 +66,13 @@ async def get_prices():
     try:
         response = get_historical_prices()
         return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/prices/live", response_model=List[TickerPrice])
+async def get_live_prices_for_tickers(request: TickersRequest):
+    try:
+        data = await fetch_live_prices(request.tickers)
+        return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
