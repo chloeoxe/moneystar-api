@@ -113,6 +113,7 @@ def get_portfolio_distribution_data() -> List[Dict[str, Any]]:
     
     transactions = response.data
     
+    # Calculate total quantity for each ticker
     total_ticker_quantities = {}
     for transaction in transactions:
         total_ticker_quantities[transaction["ticker"]] = total_ticker_quantities.get(transaction["ticker"], 0) + transaction["quantity"]
@@ -181,3 +182,38 @@ def portfolio_calc() -> List[Dict[str, Any]]:
     processed['pnl'] = processed['price_delta'] * processed['quantity']
 
     return processed.to_dict(orient='records')
+
+def get_overall_portfolio_month_change() -> Dict[str, float]:
+    response = client.table("transactions").select("*").execute()
+    if not response.data:
+        return []
+    
+    transactions = response.data
+    
+    # Calculate total quantity for each ticker
+    total_ticker_quantities = {}
+    for transaction in transactions:
+        total_ticker_quantities[transaction["ticker"]] = total_ticker_quantities.get(transaction["ticker"], 0) + transaction["quantity"]
+     
+    total_ticker_quantities = {k: v for k, v in total_ticker_quantities.items() if v > 0}
+    
+    this_month_portfolio_value, last_month_portfolio_value = 0, 0
+    for ticker, quantity in total_ticker_quantities.items():
+        try:
+            # Fetch live price for each ticker
+            price = fetch_live_price(ticker)
+            this_month_portfolio_value += round(price * quantity, 2)
+            
+            # Fetch historical prices for the last month
+            today = pd.Timestamp.today().normalize()
+            close_window = today - pd.DateOffset(months=1)
+            start_window = close_window - pd.DateOffset(days=5) # buffer for market closing
+            close_window = str(close_window)[:10]
+            start_window = str(start_window)[:10]
+            
+            last_month_portfolio_value += round(fetch_historical_prices(ticker, start_window, close_window)[0] * quantity, 2)
+    
+        except ValueError as e:
+            raise ValueError(f"Error fetching price for {ticker}: {e}")
+    
+    return {"value": this_month_portfolio_value, "prev_value": last_month_portfolio_value}
