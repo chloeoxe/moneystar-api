@@ -6,7 +6,7 @@ from typing import List
 from controller import charts_routes
 from crud import portfolio_calc, transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_historical_prices
 from model.transaction_model import Transaction, TransactionCreate, TransactionUpdate
-from model.ticker_model import TickersRequest, TickerPrice
+from models import TickersRequest, TickerPrice
 from model.position_model import Position
 
 from service.price_service import PriceService

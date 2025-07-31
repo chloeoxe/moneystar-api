@@ -2,8 +2,10 @@ from datetime import date, timedelta
 import pandas as pd
 from typing import List, Dict, Any
 
-from service.price_service import PriceService
 from repository.transaction_repository import TransactionRepository
+# TODO: Refactor prices
+from crud import fetch_live_prices
+from models import TickersRequest
 
 class ChartService:
     """Service class to handle chart-related operations."""
@@ -56,7 +58,7 @@ class ChartService:
         
         # Fetch live prices for each ticker
         tickers = ticker_quantities.index.tolist()
-        prices = await PriceService.fetch_live_prices(tickers)
+        prices = await fetch_live_prices(TickersRequest(tickers=tickers))
         price_data = pd.DataFrame([{"ticker": p.ticker, "price": p.price} for p in prices])
         price_data.set_index("ticker", inplace=True)
 
