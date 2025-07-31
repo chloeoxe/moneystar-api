@@ -1,9 +1,15 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices, fetch_live_prices, get_portfolio_distribution_data, get_top_holdings_performance_data, portfolio_calc, get_overall_portfolio_month_change
-from models import Transaction, TransactionCreate, TransactionUpdate, TickersRequest, TickerPrice, Position
 from typing import List
+
+from controller import charts_routes
+from crud import portfolio_calc, transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_historical_prices
+from model.transaction_model import Transaction, TransactionCreate, TransactionUpdate
+from models import TickersRequest, TickerPrice
+from model.position_model import Position
+
+from service.price_service import PriceService
 
 app = FastAPI()
 
@@ -15,6 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(charts_routes.router)
+
 @app.get("/")
 async def root():
     return {"message": "Hello, this is MoneyStar's API!"}
@@ -22,7 +30,7 @@ async def root():
 @app.get("/portfolio", response_model=List[Position])
 async def read_portfolio():
     try:
-        response = portfolio_calc()
+        response = await portfolio_calc()
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -61,14 +69,6 @@ async def delete_transaction(transaction_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.get("/portfolio/linechart")
-async def get_portfolio_linechart():
-    try:
-        data = get_portfolio_linechart_data()
-        return data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
 @app.get("/prices")
 async def get_prices():
     try:
@@ -80,31 +80,7 @@ async def get_prices():
 @app.post("/prices/live", response_model=List[TickerPrice])
 async def get_live_prices_for_tickers(request: TickersRequest):
     try:
-        data = await fetch_live_prices(request)
+        data = await PriceService.fetch_live_prices(request.tickers)
         return data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/portfolio/distribution")
-async def get_portfolio_distribution():
-    try:
-        response = get_portfolio_distribution_data()
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-@app.get("/portfolio/topholdingsperformance")
-async def get_portfolio_barchart():
-    try:
-        response = get_top_holdings_performance_data()
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-@app.get("/portfolio/monthchange")
-async def get_portfolio_month_change():
-    try:
-        response = get_overall_portfolio_month_change()
-        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
