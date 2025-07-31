@@ -1,7 +1,7 @@
 from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices, get_portfolio_distribution_data, get_top_holdings_performance_data, portfolio_calc
+from crud import transactions_read, transaction_create, transaction_update, delete_transaction_by_id, get_portfolio_linechart_data, get_historical_prices, get_portfolio_distribution_data, get_top_holdings_performance_data, portfolio_calc, get_overall_portfolio_month_change
 from models import Transaction, TransactionCreate, TransactionUpdate, Position
 from typing import List
 
@@ -89,6 +89,14 @@ async def get_portfolio_distribution():
 async def get_portfolio_barchart():
     try:
         response = get_top_holdings_performance_data()
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/portfolio/monthchange")
+async def get_portfolio_month_change():
+    try:
+        response = get_overall_portfolio_month_change()
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
