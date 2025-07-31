@@ -1,7 +1,6 @@
-import random
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import List, Dict, Any
-from models import TransactionCreate, TransactionUpdate, TickerPrice
+from models import TransactionCreate, TransactionUpdate, TickersRequest, TickerPrice
 from database import create_supabase_client
 import yfinance as yf
 import pandas as pd
@@ -103,12 +102,17 @@ def get_historical_prices() -> List[Dict[str, Any]]:
         return []
     return response.data
 
-async def fetch_live_prices(tickers: list[str]) -> list[TickerPrice]:
+async def fetch_live_prices(request: TickersRequest) -> list[TickerPrice]:
+    target_date = date.today() if request.target_date is None else datetime.strptime(request.target_date, '%Y-%m-%d').date()
+    start_date = target_date - timedelta(days=3)
+    end_date = target_date + timedelta(days=1)
+
     try:
         data = yf.download(
-            tickers=tickers,
-            period="1d",
-            interval="1m",
+            tickers=request.tickers,
+            start=start_date.strftime('%Y-%m-%d'),
+            end=end_date.strftime('%Y-%m-%d'),
+            interval=request.interval,
             progress=False,
             threads=True,
             auto_adjust=True
@@ -118,13 +122,14 @@ async def fetch_live_prices(tickers: list[str]) -> list[TickerPrice]:
 
         if isinstance(data.columns, pd.MultiIndex):
             # Add latest closing price for each ticker into results
-            for ticker in tickers:
+            for ticker in request.tickers:
                 try:
                     price_series = data[("Close", ticker)]
                     price = price_series.dropna().iloc[-1] if not price_series.dropna().empty else None
-                    results.append(TickerPrice(ticker=ticker, price=round(price, 2) if price else None))
+                    latest_date = price_series.index[-1].date() if not price_series.dropna().empty else None
+                    results.append(TickerPrice(ticker=ticker, date=latest_date, price=round(price, 2) if price else None))
                 except Exception as e:
-                    results.append(TickerPrice(ticker=ticker, price=None))
+                    results.append(TickerPrice(ticker=ticker, date=None, price=None))
 
         return results
 

@@ -80,7 +80,7 @@ async def get_prices():
 @app.post("/prices/live", response_model=List[TickerPrice])
 async def get_live_prices_for_tickers(request: TickersRequest):
     try:
-        data = await fetch_live_prices(request.tickers)
+        data = await fetch_live_prices(request)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
