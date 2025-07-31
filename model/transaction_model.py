@@ -1,16 +1,6 @@
 from datetime import date
-from typing import List, Dict, Optional
 from pydantic import BaseModel
-
-class Position(BaseModel):
-    ticker: str
-    name: str
-    quantity: int
-    avg_price: float
-    live_price: float
-    price_delta: float
-    pct_delta: float
-    pnl: float
+from typing import Optional
 
 class Transaction(BaseModel):
     id: str
@@ -19,7 +9,7 @@ class Transaction(BaseModel):
     quantity: int
     price: float
     transaction_date: date
-
+    
 class TransactionCreate(BaseModel):
     ticker: str
     name: str
@@ -33,10 +23,3 @@ class TransactionUpdate(BaseModel):
     quantity: Optional[int] = None
     price: Optional[float] = None
     transaction_date: Optional[str] = None
-
-class TickersRequest(BaseModel):
-    tickers: List[str]
-
-class TickerPrice(BaseModel):
-    ticker: str
-    price: Optional[float]  # None if invalid/cannot be found
