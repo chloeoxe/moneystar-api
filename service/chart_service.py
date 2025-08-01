@@ -17,7 +17,7 @@ class ChartService:
             return []
 
         # Find the earliest transaction date
-        earliest_date = min(date.fromisoformat(t["transaction_date"]) for t in transactions)
+        earliest_date = min(t.transaction_date for t in transactions)
         today = date.today()
 
         # Build list of dates from earliest date to today
@@ -28,9 +28,9 @@ class ChartService:
         chart_data = []
         for d in all_dates:
             total_value = sum(
-                t["quantity"] * t["price"]
+                t.quantity * t.price
                 for t in transactions
-                if date.fromisoformat(t["transaction_date"]) <= d
+                if t.transaction_date <= d
             )
             chart_data.append({
                 "date": d.isoformat(),
@@ -50,6 +50,7 @@ class ChartService:
         if not transactions:
             return pd.DataFrame(columns=["ticker", "quantity", "price", "value"])
         
+        transactions = [t.model_dump() for t in transactions]
         transactions = pd.DataFrame(transactions)
 
         # Calculate total quantity for each ticker
