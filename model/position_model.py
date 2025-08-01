@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-class PositionSummary(BaseModel):
+class PortfolioSummary(BaseModel):
     total_value: float
     total_value_pct: float
     monthly_pnl: float

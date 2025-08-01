@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 
-from model.position_model import Position, PositionSummary
+from model.position_model import Position, PortfolioSummary
 from service.portfolio_service import PortfolioService
 
 router = APIRouter()
 
-@router.get("/summary", response_model=PositionSummary)
+@router.get("/summary", response_model=PortfolioSummary)
 async def get_portfolio_summary():
     try:
         response = await PortfolioService.portfolio_summary()
