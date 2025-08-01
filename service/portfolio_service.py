@@ -72,7 +72,7 @@ class PortfolioService:
         
         #processed['live_price'] = processed['ticker'].apply(lambda x: fetch_live_price(x) if x else 0)
         processed['price_delta'] = processed['live_price'] - processed['avg_price']
-        processed['pct_delta'] = processed['price_delta'] / processed['avg_price']
+        processed['pct_delta'] = processed['price_delta'] / processed['avg_price'] * 100
         processed['pnl'] = processed['price_delta'] * processed['quantity']
         processed['id'] = processed.index.astype(str)
 
