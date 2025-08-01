@@ -1,4 +1,5 @@
 from datetime import date
+import pandas as pd
 from typing import List, Dict, Any
 
 from repository.transaction_repository import TransactionRepository
@@ -43,3 +44,17 @@ class TransactionService:
         except Exception as e:
             raise Exception(f"Error deleting transaction: {str(e)}")
 
+    @staticmethod
+    def get_transaction_table_data():
+        """Fetches transaction data formatted for the transactions table on frontend."""
+        transactions = TransactionRepository.get_all_transactions()
+        if not transactions:
+            return []
+        
+        transactions =  [t.model_dump() for t in transactions]
+        transactions = pd.DataFrame(transactions)
+        
+        transactions["buy_sell"] = transactions["quantity"].apply(lambda x: "Buy" if x > 0 else "Sell")
+        
+        return transactions.to_dict(orient='records')
+print(TransactionService.get_transaction_table_data())
