@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 class Position(BaseModel):
+    id: str
     ticker: str
     name: str
     quantity: int

@@ -1,5 +1,7 @@
 from datetime import date, timedelta, datetime
 from typing import List, Dict, Any
+
+import numpy as np
 from model.transaction_model import TransactionCreate, TransactionUpdate
 from repository.database import create_supabase_client
 from repository.transaction_repository import TransactionRepository
@@ -133,10 +135,12 @@ async def portfolio_calc() -> List[Dict[str, Any]]:
 
     # Map live prices back to DataFrame
     processed['live_price'] = processed['ticker'].map(price_map)
+    processed = processed.dropna(subset=['live_price'])
     
     #processed['live_price'] = processed['ticker'].apply(lambda x: fetch_live_price(x) if x else 0)
     processed['price_delta'] = processed['live_price'] - processed['avg_price']
     processed['pct_delta'] = processed['price_delta'] / processed['avg_price']
     processed['pnl'] = processed['price_delta'] * processed['quantity']
+    processed['id'] = processed.index.astype(str)
 
     return processed.to_dict(orient='records')
