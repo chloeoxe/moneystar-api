@@ -2,10 +2,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 
-from controller import chart_routes, transaction_routes
-from crud import portfolio_calc, get_historical_prices
+from controller import chart_routes, transaction_routes, portfolio_routes
+from crud import get_historical_prices
 from models import TickersRequest, TickerPrice
-from model.position_model import Position
+
 
 from service.price_service import PriceService
 
@@ -21,19 +21,12 @@ app.add_middleware(
 
 app.include_router(chart_routes.router)
 app.include_router(transaction_routes.router)
+app.include_router(portfolio_routes.router)
 
 @app.get("/")
 async def root():
     return {"message": "Hello, this is MoneyStar's API!"}
 
-@app.get("/portfolio", response_model=List[Position])
-async def read_portfolio():
-    try:
-        response = await portfolio_calc()
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
 @app.get("/prices")
 async def get_prices():
     try:
