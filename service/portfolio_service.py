@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
 
 from models import TickersRequest
@@ -7,11 +7,45 @@ from crud import fetch_live_prices
 
 class PortfolioService:
     @staticmethod
-    async def portfolio_calc() -> List[Dict[str, Any]]:
+    async def portfolio_summary() -> List[Dict[str, Any]]:
+        curr_date = pd.to_datetime("today").normalize()
+        one_month_ago = curr_date - pd.DateOffset(months=1)
+
+        pf = await PortfolioService.portfolio_calc(json=False)
+        pf_last_month = await PortfolioService.portfolio_calc(date=one_month_ago.strftime('%Y-%m-%d'), json=False)
+
+        total_value = (pf['live_price'] * pf['quantity']).sum()
+        total_value_last_month = (pf_last_month['live_price'] * pf_last_month['quantity']).sum()
+        monthly_pnl = total_value - total_value_last_month
+        monthly_pnl_pct = (monthly_pnl / total_value_last_month * 100) if total_value_last_month else 0
+        all_time_returns = pf['pnl'].sum()
+        all_time_returns_pct = (all_time_returns / total_value * 100) if total_value else 0
+        cash = 0  # Assuming cash is not tracked in this context
+        cash_pct = 0  # Assuming cash percentage is not tracked
+
+        summary = {
+            "total_value": total_value,
+            "total_value_pct": (total_value - total_value_last_month) / total_value_last_month * 100 if total_value_last_month else 0,
+            "monthly_pnl": monthly_pnl,
+            "monthly_pnl_pct": monthly_pnl_pct,
+            "all_time_returns": all_time_returns,
+            "all_time_returns_pct": all_time_returns_pct,
+            "cash": cash,
+            "cash_pct": cash_pct
+        }
+
+        return summary
+
+    @staticmethod
+    async def portfolio_calc(date: Optional[str] = None, json: bool = True) -> List[Dict[str, Any]]:
         transactions = TransactionRepository.get_all_transactions()
         transactions = [t.model_dump() for t in transactions]
         
         df = pd.DataFrame(transactions)
+
+        if date:
+            df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+            df = df[df['transaction_date'] <= pd.to_datetime(date)]
 
         total_qty = df.groupby(['ticker', 'name'])['quantity'].sum().reset_index(name="quantity")
 
@@ -42,4 +76,4 @@ class PortfolioService:
         processed['pnl'] = processed['price_delta'] * processed['quantity']
         processed['id'] = processed.index.astype(str)
 
-        return processed.to_dict(orient='records')
+        return processed.to_dict(orient='records') if json else processed

@@ -1,5 +1,15 @@
 from pydantic import BaseModel
 
+class PositionSummary(BaseModel):
+    total_value: float
+    total_value_pct: float
+    monthly_pnl: float
+    monthly_pnl_pct: float
+    all_time_returns: float
+    all_time_returns_pct: float
+    cash: float
+    cash_pct: float
+
 class Position(BaseModel):
     id: str
     ticker: str
