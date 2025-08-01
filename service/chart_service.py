@@ -64,6 +64,7 @@ class ChartService:
 
         # Calculate total value held for each ticker
         df = pd.DataFrame(ticker_quantities).join(price_data)
+        df.dropna(subset=["price"], inplace=True) 
         df["value"] = df["quantity"] * df["price"]
         
         return df.reset_index()
