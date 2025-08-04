@@ -6,3 +6,5 @@ venv/
 
 # environment file
 .env
+
+seed*

@@ -1,4 +1,5 @@
 from datetime import date
+from fastapi import HTTPException, status
 import pandas as pd
 from typing import List, Dict, Any
 
@@ -15,14 +16,14 @@ class TransactionService:
     def create_transaction(transaction: TransactionCreate) -> Dict[str, Any]:
         try:
             if transaction.quantity == 0:
-                raise ValueError("Quantity cannot be 0")
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Quantity cannot be 0")
             if transaction.price == 0:
-                raise ValueError("Price cannot be 0")
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Price cannot be 0")
             if transaction.transaction_date is None:
                 transaction.transaction_date = date.today()
             return TransactionRepository.create_transaction(transaction)
         except Exception as e:
-            raise Exception(f"Error creating transaction: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating transaction: {str(e)}")
     
     @staticmethod
     def update_transaction(transaction_id: str, transaction: TransactionUpdate) -> Dict[str, Any]:
@@ -57,4 +58,3 @@ class TransactionService:
         transactions["buy_sell"] = transactions["quantity"].apply(lambda x: "Buy" if x > 0 else "Sell")
         
         return transactions.to_dict(orient='records')
-print(TransactionService.get_transaction_table_data())
