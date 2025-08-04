@@ -1,4 +1,7 @@
+from datetime import date
 from typing import List, Dict, Any
+
+from fastapi import HTTPException, status
 
 from model.transaction_model import Transaction, TransactionCreate, TransactionUpdate
 from repository.database import create_supabase_client
@@ -15,7 +18,17 @@ class TransactionRepository:
     
     @staticmethod
     def create_transaction(transaction: TransactionCreate) -> Dict[str, Any]:
+        if transaction.quantity == 0:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Quantity cannot be 0")
+        if transaction.price == 0:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Price cannot be 0")
+        if transaction.transaction_date is None:
+            transaction.transaction_date = date.today()
         client = create_supabase_client()
+        curr_qty = client.table("transactions").select("quantity").eq("ticker", transaction.ticker).execute()
+        total_qty = sum(item['quantity'] for item in curr_qty.data) if curr_qty.data else 0
+        if total_qty and total_qty + transaction.quantity < 0:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Insufficient quantity for transaction")
         response = client.table("transactions").insert({
             "ticker": transaction.ticker,
             "name": transaction.name,
@@ -24,7 +37,7 @@ class TransactionRepository:
             "transaction_date": str(transaction.transaction_date)
         }).execute()
         if not response.data:
-            raise ValueError("Failed to create transaction: no data returned")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No data returned from transaction creation")
         return response.data[0]
     
     @staticmethod

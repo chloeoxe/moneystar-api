@@ -15,15 +15,11 @@ class TransactionService:
     @staticmethod
     def create_transaction(transaction: TransactionCreate) -> Dict[str, Any]:
         try:
-            if transaction.quantity == 0:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Quantity cannot be 0")
-            if transaction.price == 0:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Price cannot be 0")
-            if transaction.transaction_date is None:
-                transaction.transaction_date = date.today()
             return TransactionRepository.create_transaction(transaction)
+        except HTTPException as e:
+            raise e
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating transaction: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating transaction")
     
     @staticmethod
     def update_transaction(transaction_id: str, transaction: TransactionUpdate) -> Dict[str, Any]:
