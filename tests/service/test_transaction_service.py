@@ -1,10 +1,8 @@
 import pytest
 from datetime import date
 from unittest.mock import patch
-import pandas as pd
 
 from model.transaction_model import Transaction, TransactionCreate, TransactionUpdate
-from repository.transaction_repository import TransactionRepository
 from service.transaction_service import TransactionService
 
 class TestTransactionService: 
@@ -27,8 +25,7 @@ class TestTransactionService:
     def test_create_transaction_success_with_date_provided(self, mock_create_transaction):
         """Test creating a transaction successfully when a date is explicitly provided."""
         
-        transaction_date_str = "2023-01-15"
-        transaction_create = TransactionCreate(ticker="MSFT", name="Microsoft Corp.", quantity=10, price=100.0, transaction_date=transaction_date_str)
+        transaction_create = TransactionCreate(ticker="MSFT", name="Microsoft Corp.", quantity=10, price=100.0, transaction_date="2023-01-15")
         expected_result = {"id": "new_id", "message": "Transaction created successfully"}
         mock_create_transaction.return_value = expected_result
         
