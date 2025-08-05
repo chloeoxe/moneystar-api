@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import Any, Dict, List
 
+from exceptions import InsufficientQuantityError, InvalidTransactionError, RepositoryError, TickerNotFoundError
 from model.transaction_model import Transaction, TransactionCreate, TransactionUpdate
 from service.transaction_service import TransactionService
 
@@ -17,12 +18,17 @@ async def get_all_transactions():
 @router.post("/transaction", response_model=Transaction)
 async def create_transaction(transaction: TransactionCreate):
     try:
-        response = TransactionService.create_transaction(transaction)
-        return response
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+        return TransactionService.create_transaction(transaction)
+    except TickerNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidTransactionError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except InsufficientQuantityError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except RepositoryError as e:
         raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
     
 @router.put("/transaction/{transaction_id}", response_model=Transaction)
 async def update_transaction(transaction_id: str, transaction: TransactionUpdate):

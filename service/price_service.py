@@ -10,7 +10,6 @@ from repository.transaction_repository import TransactionRepository
 from model.price_model import TickersLivePriceRequest, TickerPrice, PriceUpdateRequest, PriceUpdateResponse, TickerPriceUpdateRequest, TickerPriceUpdateResponse
 
 class PriceService: 
-    
     @staticmethod
     def get_historical_prices() -> List[TickerPrice]:
         """

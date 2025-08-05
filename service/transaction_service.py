@@ -1,8 +1,10 @@
+import yfinance as yf
 from datetime import date
 from fastapi import HTTPException, status
 import pandas as pd
 from typing import List, Dict, Any
 
+from exceptions import InsufficientQuantityError, InvalidTransactionError, TickerNotFoundError
 from repository.transaction_repository import TransactionRepository
 from model.transaction_model import Transaction, TransactionCreate, TransactionUpdate
 
@@ -14,12 +16,20 @@ class TransactionService:
 
     @staticmethod
     def create_transaction(transaction: TransactionCreate) -> Dict[str, Any]:
-        try:
-            return TransactionRepository.create_transaction(transaction)
-        except HTTPException as e:
-            raise e
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating transaction")
+        stock = yf.Ticker(transaction.ticker)
+        name = stock.info.get("longName") or stock.info.get("shortName")
+        qty = TransactionRepository.get_ticker_qty(transaction.ticker)
+        if not name:
+            raise TickerNotFoundError("Ticker does not exist")
+        if transaction.quantity == 0:
+            raise InvalidTransactionError("Quantity cannot be 0")
+        if transaction.price == 0:
+            raise InvalidTransactionError("Price cannot be 0")
+        if qty + transaction.quantity < 0:
+            raise InsufficientQuantityError("Insufficient quantity for this transaction")
+        if transaction.transaction_date is None:
+            transaction.transaction_date = date.today()
+        return TransactionRepository.create_transaction(transaction, name)
     
     @staticmethod
     def update_transaction(transaction_id: str, transaction: TransactionUpdate) -> Dict[str, Any]:

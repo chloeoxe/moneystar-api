@@ -12,7 +12,6 @@ class Transaction(BaseModel):
     
 class TransactionCreate(BaseModel):
     ticker: str
-    name: str
     quantity: int
     price: float
     transaction_date: Optional[str] = None
