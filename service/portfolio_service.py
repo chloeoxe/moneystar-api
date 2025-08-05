@@ -1,9 +1,9 @@
 from typing import List, Dict, Any, Optional
 import pandas as pd
 
-from models import TickersRequest
 from repository.transaction_repository import TransactionRepository
-from crud import fetch_live_prices
+from service.price_service import PriceService
+from model.price_model import TickersLivePriceRequest
 
 class PortfolioService:
     @staticmethod
@@ -63,8 +63,8 @@ class PortfolioService:
         
         # Fetch live prices in batch
         tickers = processed['ticker'].tolist()
-        live_prices = await fetch_live_prices(TickersRequest(tickers=tickers))
-        price_map = {p.ticker: p.price for p in live_prices if p.price is not None}
+        live_prices = await PriceService.fetch_live_prices(TickersLivePriceRequest(tickers=tickers))
+        price_map = {p.ticker: p.close for p in live_prices if p.close is not None}
 
         # Map live prices back to DataFrame
         processed['live_price'] = processed['ticker'].map(price_map)
