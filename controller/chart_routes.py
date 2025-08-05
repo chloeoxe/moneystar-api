@@ -27,11 +27,3 @@ async def get_portfolio_barchart():
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-@router.get("/charts/portfolio-overall-month-change")
-async def get_portfolio_month_change():
-    try:
-        response = await ChartService.get_overall_portfolio_month_change()
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
