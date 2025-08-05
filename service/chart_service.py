@@ -3,9 +3,8 @@ import pandas as pd
 from typing import List, Dict, Any
 
 from repository.transaction_repository import TransactionRepository
-# TODO: Refactor prices
-from crud import fetch_live_prices
-from models import TickersRequest
+from service.price_service import PriceService
+from model.price_model import TickersLivePriceRequest
 
 class ChartService:
     """Service class to handle chart-related operations."""
@@ -59,8 +58,8 @@ class ChartService:
         
         # Fetch live prices for each ticker
         tickers = ticker_quantities.index.tolist()
-        prices = await fetch_live_prices(TickersRequest(tickers=tickers))
-        price_data = pd.DataFrame([{"ticker": p.ticker, "price": p.price} for p in prices])
+        prices = await PriceService.fetch_live_prices(TickersLivePriceRequest(tickers=tickers))
+        price_data = pd.DataFrame([{"ticker": p.ticker, "price": p.close} for p in prices])
         price_data.set_index("ticker", inplace=True)
 
         # Calculate total value held for each ticker
