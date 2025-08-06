@@ -33,10 +33,17 @@ async def create_transaction(transaction: TransactionCreate):
 @router.put("/transaction/{transaction_id}", response_model=Transaction)
 async def update_transaction(transaction_id: str, transaction: TransactionUpdate):
     try:
-       response = TransactionService.update_transaction(transaction_id, transaction)
-       return response
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+       return TransactionService.update_transaction(transaction_id, transaction)
+    except TickerNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidTransactionError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except InsufficientQuantityError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except RepositoryError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 @router.delete("/transaction/{transaction_id}")
 async def delete_transaction(transaction_id: str):

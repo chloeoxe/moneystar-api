@@ -33,14 +33,20 @@ class TransactionService:
     
     @staticmethod
     def update_transaction(transaction_id: str, transaction: TransactionUpdate) -> Dict[str, Any]:
-        try:
-            if transaction.quantity == 0:
-                raise ValueError("Quantity cannot be 0")
-            if transaction.price == 0:
-                raise ValueError("Price cannot be 0")
-            return TransactionRepository.update_transaction(transaction_id, transaction)
-        except Exception as e:
-            raise Exception(f"Error updating transaction: {str(e)}")
+        stock = yf.Ticker(transaction.ticker)
+        name = stock.info.get("longName") or stock.info.get("shortName")
+        qty = TransactionRepository.get_ticker_qty(transaction.ticker)
+        if not name:
+            raise TickerNotFoundError("Ticker does not exist")
+        if transaction.quantity == 0:
+            raise InvalidTransactionError("Quantity cannot be 0")
+        if transaction.price == 0:
+            raise InvalidTransactionError("Price cannot be 0")
+        if qty + transaction.quantity < 0:
+            raise InsufficientQuantityError("Insufficient quantity for this transaction")
+        if transaction.transaction_date is None:
+            transaction.transaction_date = date.today()
+        return TransactionRepository.update_transaction(transaction_id, transaction)
     
     @staticmethod
     def delete_transaction_by_id(transaction_id: str) -> dict[str, Any]:
