@@ -10,7 +10,7 @@ client = TestClient(router)
 class TestPortfolioRoutes:
     
     @patch("service.portfolio_service.PortfolioService.portfolio_summary")
-    def test_get_portfolio_linechart_data(self, mock_get_portfolio_summary): 
+    def test_get_portfolio_summary(self, mock_get_portfolio_summary): 
         "Test success"
         
         mock_data = {
@@ -32,7 +32,7 @@ class TestPortfolioRoutes:
         mock_get_portfolio_summary.assert_called_once()
         
     @patch("service.portfolio_service.PortfolioService.portfolio_summary")
-    def test_get_portfolio_linechart_data_exception(self, mock_get_portfolio_summary):
+    def test_get_portfolio_summary_exception(self, mock_get_portfolio_summary):
         "Test Exception"
         
         exception_msg = "Failed to retrieve portfolio summary"
@@ -46,7 +46,7 @@ class TestPortfolioRoutes:
         mock_get_portfolio_summary.assert_called_once()
         
     @patch("service.portfolio_service.PortfolioService.portfolio_calc")
-    def test_get_portfolio_linechart_data(self, mock_get_portfolio): 
+    def test_get_portfolio_calc(self, mock_get_portfolio): 
         "Test success"
         
         mock_data = [{"id":"0","ticker":"AAPL","name":"Apple Inc.","quantity":164,"avg_price":167.0639179286761,"live_price":202.93,"price_delta":35.866082071323916,"pct_delta":21.46847896063115,"pnl":5882.037459697122},{"id":"1","ticker":"AMD","name":"Advanced Micro Devices Inc.","quantity":231,"avg_price":103.16853805990657,"live_price":174.38,"price_delta":71.21146194009343,"pct_delta":69.02439763054826,"pnl":16449.847708161582}]
@@ -59,7 +59,7 @@ class TestPortfolioRoutes:
         mock_get_portfolio.assert_called_once()
         
     @patch("service.portfolio_service.PortfolioService.portfolio_calc")
-    def test_get_portfolio_linechart_data_exception(self, mock_get_portfolio):
+    def test_get_portfolio_calc_exception(self, mock_get_portfolio):
         "Test Exception"
         
         exception_msg = "Failed to retrieve portfolio calculations"
