@@ -22,6 +22,8 @@ class PortfolioService:
         all_time_returns_pct = (all_time_returns / total_value * 100) if total_value else 0
         cash = 0  # Assuming cash is not tracked in this context
         cash_pct = 0  # Assuming cash percentage is not tracked
+        invested_val = (pf["avg_price"] * pf["quantity"]).sum() if not pf.empty else 0
+        invested_val_last_month = (pf_last_month["avg_price"] * pf_last_month["quantity"]).sum() if not pf_last_month.empty else 0
 
         summary = {
             "total_value": total_value,
@@ -31,7 +33,9 @@ class PortfolioService:
             "all_time_returns": all_time_returns,
             "all_time_returns_pct": all_time_returns_pct,
             "cash": cash,
-            "cash_pct": cash_pct
+            "cash_pct": cash_pct,
+            "invested_val": invested_val,
+            "invested_val_pct": (invested_val - invested_val_last_month) / invested_val_last_month * 100 if invested_val_last_month else 0,
         }
 
         return summary

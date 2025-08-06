@@ -9,6 +9,8 @@ class PortfolioSummary(BaseModel):
     all_time_returns_pct: float
     cash: float
     cash_pct: float
+    invested_val: float
+    invested_val_pct: float
 
 class Position(BaseModel):
     id: str
