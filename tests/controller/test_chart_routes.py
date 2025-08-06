@@ -2,7 +2,6 @@ from fastapi import HTTPException
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
-from datetime import date
 
 from controller.chart_routes import router
 
@@ -54,7 +53,7 @@ class TestChartRoutes:
     def test_get_portfolio_piechart_exception(self, mock_get_portfolio_piechart):
         "Test Exception"
         
-        exception_msg = "Failed to retrieve line chart data"
+        exception_msg = "Failed to retrieve pie chart data"
         mock_get_portfolio_piechart.side_effect = Exception(exception_msg)
         
         with pytest.raises(HTTPException) as exc_info:      
@@ -81,7 +80,7 @@ class TestChartRoutes:
     def test_get_portfolio_barchart_exception(self, mock_get_portfolio_barchart):
         "Test Exception"
         
-        exception_msg = "Failed to retrieve line chart data"
+        exception_msg = "Failed to retrieve bar chart data"
         mock_get_portfolio_barchart.side_effect = Exception(exception_msg)
         
         with pytest.raises(HTTPException) as exc_info:      
@@ -108,7 +107,7 @@ class TestChartRoutes:
     def test_get_portfolio_month_change_exception(self, mock_get_portfolio_month_change):
         "Test Exception"
         
-        exception_msg = "Failed to retrieve line chart data"
+        exception_msg = "Failed to retrieve overall month change data"
         mock_get_portfolio_month_change.side_effect = Exception(exception_msg)
         
         with pytest.raises(HTTPException) as exc_info:      

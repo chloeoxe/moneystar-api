@@ -57,4 +57,3 @@ class TransactionService:
         transactions["buy_sell"] = transactions["quantity"].apply(lambda x: "Buy" if x > 0 else "Sell")
         
         return transactions.to_dict(orient='records')
-print(TransactionService.get_transaction_table_data())
