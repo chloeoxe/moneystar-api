@@ -244,3 +244,66 @@ class ChartService:
         
         df = df.rename(columns={'price': 'value', 'prev_price': 'prev_value'})
         return df[["ticker", "value", "prev_value", "fixed_change", "percentage_change"]].to_dict(orient="records")
+    
+    @staticmethod
+    async def get_portfolio_pnl_chart() -> List[Dict[str, Any]]:
+        transactions = TransactionRepository.get_all_transactions()
+        if not transactions:
+            return []
+
+        df_txn = pd.DataFrame([t.model_dump() for t in transactions])
+        df_txn["transaction_date"] = pd.to_datetime(df_txn["transaction_date"])
+
+        # Extract all tickers used
+        tickers = df_txn["ticker"].unique().tolist()
+        end_date = date.today()
+
+        # Fetch only relevant price data once
+        all_prices = PriceRepository.get_prices_for_tickers_before(tickers, end_date)
+        df_prices = pd.DataFrame(all_prices)
+        df_prices["date"] = pd.to_datetime(df_prices["date"])
+
+        # Determine date range
+        start_date = df_prices["date"].min().date()
+        all_dates = pd.date_range(start=start_date, end=end_date, freq="D")
+
+        chart_data = []
+
+        for d in all_dates:
+            # Get all transactions up to date d
+            df_txn_until_d = df_txn[df_txn["transaction_date"] <= d]
+
+            # Aggregate holdings as of date d
+            holdings = df_txn_until_d.groupby("ticker")["quantity"].sum()
+            holdings = holdings[holdings > 0].reset_index(name="quantity")
+            buys = df_txn_until_d[df_txn_until_d['quantity'] > 0].copy()
+            buys['weighted_price'] = buys['price'] * buys['quantity']
+            avg_price = (
+                buys.groupby('ticker')
+                .agg(total_bought_qty=('quantity', 'sum'), total_weighted_price=('weighted_price', 'sum'))
+                .reset_index()
+            )
+            avg_price['avg_price'] = avg_price['total_weighted_price'] / avg_price['total_bought_qty'].round(2)
+
+            processed = pd.merge(holdings, avg_price[['ticker', 'avg_price']], on=['ticker'], how='left')
+
+            total_value = 0.0
+            cost_value = 0.0
+
+            for idx, row in processed.iterrows():
+                # Filter prices for this ticker up to d
+                ticker = row["ticker"]
+                qty = row["quantity"]
+                prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
+                
+                if not prices.empty:
+                    latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
+                    total_value += qty * latest_price
+                cost_value += qty * row["avg_price"]
+
+            chart_data.append({
+                "date": d.date().isoformat(),
+                "value": round((total_value - cost_value) / cost_value * 100, 2)
+            })
+
+        return chart_data

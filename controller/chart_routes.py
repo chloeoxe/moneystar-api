@@ -4,6 +4,7 @@ from service.chart_service import ChartService
 
 router = APIRouter()
 
+
 @router.get("/charts/portfolio-linechart")
 async def get_portfolio_linechart():
     try:
@@ -11,7 +12,8 @@ async def get_portfolio_linechart():
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 @router.get("/charts/portfolio-piechart")
 async def get_portfolio_piechart():
     try:
@@ -20,10 +22,20 @@ async def get_portfolio_piechart():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/charts/portfolio-barchart")
 async def get_portfolio_barchart():
     try:
         data = await ChartService.get_top_holdings_performance_data()
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/charts/portfolio-pnlchart")
+async def get_portfolio_pnlchart():
+    try:
+        data = await ChartService.get_portfolio_pnl_chart()
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
