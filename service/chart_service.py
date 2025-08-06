@@ -112,10 +112,6 @@ class ChartService:
         close_window = str(close_window)[:10]
         start_window = str(start_window)[:10]
         
-        # TODO: Compute historical quantities of each ticker at a specific point in time. 
-        
-        # TODO: Migrate to fetch from historical prices table
-        # Currently fetching hisotrical prices directly from yfinance
         from live_prices import fetch_historical_prices
         df["prev_price"] = df["ticker"].astype(object).apply(lambda x: round(float(fetch_historical_prices(x, start_window, close_window)[0] if x else 0), 2))
         return df
