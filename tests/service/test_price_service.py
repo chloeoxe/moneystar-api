@@ -5,16 +5,13 @@ from unittest.mock import patch
 import pandas as pd
 
 from model.price_model import TickerPrice, TickerPriceUpdateResponse
-from repository.price_repository import PriceRepository
 from service.price_service import PriceService
 from datetime import date, timedelta
-from unittest.mock import patch, AsyncMock
 from model.price_model import (
     TickerPrice,
     TickersLivePriceRequest,
     TickerPriceUpdateRequest,
     PriceUpdateRequest,
-    PriceUpdateResponse,
 )
 
 
@@ -167,15 +164,9 @@ class TestPriceService:
         mock_yfinance_download.assert_called_once()
 
     @pytest.mark.anyio
-    @patch(
-        "service.price_service.PriceService.get_market_open_dates",
-        new_callable=AsyncMock,
-    )
+    @patch("service.price_service.PriceService.get_market_open_dates")
     @patch("repository.price_repository.PriceRepository.get_existing_dates_per_ticker")
-    @patch(
-        "service.price_service.PriceService.fetch_missing_prices",
-        new_callable=AsyncMock,
-    )
+    @patch("service.price_service.PriceService.fetch_missing_prices")
     @patch("repository.price_repository.PriceRepository.upsert_prices")
     async def test_update_prices_for_ticker(
         self,
@@ -215,10 +206,7 @@ class TestPriceService:
         "repository.transaction_repository.TransactionRepository.get_buy_transactions"
     )
     @patch("repository.price_repository.PriceRepository.delete_prices_older_than_date")
-    @patch(
-        "service.price_service.PriceService.update_prices_for_ticker",
-        new_callable=AsyncMock,
-    )
+    @patch("service.price_service.PriceService.update_prices_for_ticker")
     async def test_update_prices(
         self,
         mock_update_prices_for_ticker,
