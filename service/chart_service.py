@@ -148,12 +148,30 @@ class ChartService:
         
         today = pd.Timestamp.today().normalize()
         close_window = today - pd.DateOffset(months=1)
-        start_window = close_window - pd.DateOffset(days=5) # buffer for market closing
-        close_window = str(close_window)[:10]
-        start_window = str(start_window)[:10]
+        start_window = close_window - pd.DateOffset(days=5)
+
+        # Fetch last month's prices from prices table
+        prev_prices = await PriceRepository.fetch_prev_month_prices(
+            tickers=df["ticker"].tolist(),
+            start_date=start_window.strftime("%Y-%m-%d"),
+            end_date=close_window.strftime("%Y-%m-%d")
+        )
+
+        # Convert to DataFrame for grouping
+        prev_df = pd.DataFrame(prev_prices)
+        prev_df["date"] = pd.to_datetime(prev_df["date"])
         
-        from live_prices import fetch_historical_prices
-        df["prev_price"] = df["ticker"].astype(object).apply(lambda x: round(float(fetch_historical_prices(x, start_window, close_window)[0] if x else 0), 2))
+        # For each ticker, get the latest available price before the end_date
+        prev_prices_dict = (
+            prev_df.sort_values(by=["ticker", "date"], ascending=[True, False])
+              .groupby("ticker")
+              .first()["close"]
+              .to_dict()
+        )
+
+        # Merge previous prices into the main dataframe
+        df["prev_price"] = df["ticker"].map(prev_prices_dict).fillna(0).round(2)
+
         return df
     
     @staticmethod

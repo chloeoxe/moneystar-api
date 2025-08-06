@@ -123,3 +123,20 @@ class PriceRepository:
                 start += page_size
 
         return all_data
+    
+    @staticmethod
+    async def fetch_prev_month_prices(tickers: List[str], start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        client = create_supabase_client()
+
+        # Fetch all prices for all tickers in the date range
+        response = client.table("prices") \
+            .select("*") \
+            .in_("ticker", tickers) \
+            .gte("date", start_date) \
+            .lte("date", end_date) \
+            .execute()
+        
+        if not response.data:
+            return []
+
+        return response.data
