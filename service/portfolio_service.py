@@ -63,14 +63,13 @@ class PortfolioService:
         
         # Fetch live prices in batch
         tickers = processed['ticker'].tolist()
-        live_prices = await PriceService.fetch_live_prices(TickersLivePriceRequest(tickers=tickers))
+        live_prices = await PriceService.fetch_live_prices(TickersLivePriceRequest(tickers=tickers, target_date=date))
         price_map = {p.ticker: p.close for p in live_prices if p.close is not None}
 
         # Map live prices back to DataFrame
         processed['live_price'] = processed['ticker'].map(price_map)
         processed = processed.dropna(subset=['live_price'])
         
-        #processed['live_price'] = processed['ticker'].apply(lambda x: fetch_live_price(x) if x else 0)
         processed['price_delta'] = processed['live_price'] - processed['avg_price']
         processed['pct_delta'] = processed['price_delta'] / processed['avg_price'] * 100
         processed['pnl'] = processed['price_delta'] * processed['quantity']
