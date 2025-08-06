@@ -3,6 +3,7 @@ import pandas as pd
 from typing import List, Dict, Any
 
 from repository.transaction_repository import TransactionRepository
+from repository.price_repository import PriceRepository
 from service.price_service import PriceService
 from model.price_model import TickersLivePriceRequest
 
@@ -15,25 +16,48 @@ class ChartService:
         if not transactions:
             return []
 
-        # Find the earliest transaction date
-        earliest_date = min(t.transaction_date for t in transactions)
-        today = date.today()
+        # Convert transactions to DataFrame
+        df_txn = pd.DataFrame([t.model_dump() for t in transactions])
+        df_txn["transaction_date"] = pd.to_datetime(df_txn["transaction_date"])
 
-        # Build list of dates from earliest date to today
-        num_days = (today - earliest_date).days + 1
-        all_dates = [earliest_date + timedelta(days=i) for i in range(num_days)]
+        # Extract all tickers used
+        tickers = df_txn["ticker"].unique().tolist()
 
-        # For each date, compute total portfolio value
+        # Get present date
+        end_date = date.today()
+
+        # Fetch only relevant price data once
+        all_prices = PriceRepository.get_prices_for_tickers_before(tickers, end_date)
+        df_prices = pd.DataFrame(all_prices)
+        df_prices["date"] = pd.to_datetime(df_prices["date"])
+
+        # Determine date range
+        start_date = df_prices["date"].min().date()
+        all_dates = pd.date_range(start=start_date, end=end_date, freq="D")
+
         chart_data = []
+
         for d in all_dates:
-            total_value = sum(
-                t.quantity * t.price
-                for t in transactions
-                if t.transaction_date <= d
-            )
+            # Get all transactions up to date d
+            df_txn_until_d = df_txn[df_txn["transaction_date"] <= d]
+
+            # Aggregate holdings as of date d
+            holdings = df_txn_until_d.groupby("ticker")["quantity"].sum()
+            holdings = holdings[holdings > 0]
+
+            total_value = 0.0
+
+            for ticker, qty in holdings.items():
+                # Filter prices for this ticker up to d
+                prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
+                
+                if not prices.empty:
+                    latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
+                    total_value += qty * latest_price
+
             chart_data.append({
-                "date": d.isoformat(),
-                "value": total_value
+                "date": d.date().isoformat(),
+                "value": round(total_value, 2)
             })
 
         return chart_data

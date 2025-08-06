@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 from datetime import date
 
 from repository.database import create_supabase_client
@@ -89,3 +89,37 @@ class PriceRepository:
             raise Exception(f"Failed to delete old prices: {str(e)}")
         
         return response.count if response.count else 0
+        
+    @staticmethod
+    def get_prices_for_tickers_before(tickers: List[str], max_date: date) -> List[Dict[str, Any]]:
+        client = create_supabase_client()
+
+        all_data = []
+        chunk_size = 10
+        page_size = 1000
+
+        for i in range(0, len(tickers), chunk_size):
+            ticker_chunk = tickers[i:i + chunk_size]
+            start = 0
+            while True:
+                end = start + page_size - 1
+
+                response = client.table("prices") \
+                    .select("ticker", "date", "close") \
+                    .in_("ticker", ticker_chunk) \
+                    .lte("date", max_date.isoformat()) \
+                    .order("ticker") \
+                    .range(start, end) \
+                    .execute()
+
+                page_data = response.data
+                if not page_data:
+                    break
+
+                all_data.extend(page_data)
+
+                if len(page_data) < page_size:
+                    break  # no more pages
+                start += page_size
+
+        return all_data
