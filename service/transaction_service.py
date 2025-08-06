@@ -35,6 +35,7 @@ class TransactionService:
     def update_transaction(transaction_id: str, transaction: TransactionUpdate) -> Dict[str, Any]:
         stock = yf.Ticker(transaction.ticker)
         name = stock.info.get("longName") or stock.info.get("shortName")
+        original_transaction = TransactionRepository.get_transaction_by_id(transaction_id)
         qty = TransactionRepository.get_ticker_qty(transaction.ticker)
         if not name:
             raise TickerNotFoundError("Ticker does not exist")
@@ -42,7 +43,7 @@ class TransactionService:
             raise InvalidTransactionError("Quantity cannot be 0")
         if transaction.price == 0:
             raise InvalidTransactionError("Price cannot be 0")
-        if qty + transaction.quantity < 0:
+        if qty - original_transaction.quantity + transaction.quantity < 0:
             raise InsufficientQuantityError("Insufficient quantity for this transaction")
         if transaction.transaction_date is None:
             transaction.transaction_date = date.today()
@@ -50,12 +51,12 @@ class TransactionService:
     
     @staticmethod
     def delete_transaction_by_id(transaction_id: str) -> dict[str, Any]:
-        try:
-            if transaction_id == "":
-                raise ValueError("Transaction ID cannot be empty")
-            return TransactionRepository.delete_transaction_by_id(transaction_id)
-        except Exception as e:
-            raise Exception(f"Error deleting transaction: {str(e)}")
+        original_transaction = TransactionRepository.get_transaction_by_id(transaction_id)
+        qty = TransactionRepository.get_ticker_qty(original_transaction.ticker)
+        print(f"Original transaction quantity: {original_transaction.quantity}, Current ticker quantity: {qty}")
+        if qty - original_transaction.quantity < 0:
+            raise InsufficientQuantityError("Insufficient quantity for this transaction")
+        return TransactionRepository.delete_transaction_by_id(transaction_id)
 
     @staticmethod
     def get_transaction_table_data():

@@ -22,6 +22,14 @@ class TransactionRepository:
         client = create_supabase_client()
         curr_qty = client.table("transactions").select("quantity").eq("ticker", ticker).execute()
         return sum(item['quantity'] for item in curr_qty.data) if curr_qty.data else 0
+
+    @staticmethod
+    def get_transaction_by_id(transaction_id: str) -> Transaction:
+        client = create_supabase_client()
+        response = client.table("transactions").select("*").eq("id", transaction_id).execute()
+        if not response.data:
+            raise ValueError(f"Transaction with id={transaction_id} not found")
+        return Transaction(**response.data[0])
     
     @staticmethod
     def create_transaction(transaction: TransactionCreate, name: str) -> Dict[str, Any]:
