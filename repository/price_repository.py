@@ -9,10 +9,27 @@ class PriceRepository:
     @staticmethod
     def get_all_prices() -> List[TickerPrice]:
         client = create_supabase_client()
-        response = client.table("prices").select("*").execute()
-        if not response.data:
-            return []
-        return [TickerPrice(**price) for price in response.data]
+
+        page_size = 1000
+        start = 0
+        existing_prices = []
+
+        while True:
+            response = client.table("prices").select("*").execute()
+
+            if not response.data:
+                break
+            
+            page_prices = [TickerPrice(**price) for price in response.data]
+            existing_prices.extend(page_prices)
+
+            # If we got less than a full page, we can stop fetching
+            if len(response.data) < page_size:
+                break
+
+            start += page_size
+        
+        return existing_prices
     
     @staticmethod
     def get_existing_dates_per_ticker(ticker: str, start_date: date) -> List[date]:
