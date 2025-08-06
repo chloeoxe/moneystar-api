@@ -65,3 +65,16 @@ class TransactionRepository:
         if len(response.data) == 0:
             raise ValueError(f"Transaction with id={transaction_id} not found")
         return {"message": f"Transaction with id={transaction_id} deleted successfully"}
+
+    @staticmethod
+    def get_buy_transactions() -> List[Dict[str, Any]]:
+        client = create_supabase_client()
+        response = client.table("transactions") \
+            .select("ticker,transaction_date") \
+            .gt("quantity", 0) \
+            .execute()
+
+        if not response.data:
+            return []
+
+        return response.data
