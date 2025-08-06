@@ -54,10 +54,10 @@ class PriceService:
             raise Exception(f"[yfinance] Live prices batch request failed: {str(e)}")
     
     @staticmethod
-    async def get_market_open_dates(start_date: date, end_date: date):
-        nyse = mcal.get_calendar('NYSE')
-        schedule = nyse.schedule(start_date=start_date, end_date=end_date)
-        return schedule.index.date.tolist()
+    async def get_market_open_dates(start_date: date, end_date: date):  
+        weekdays_index = pd.bdate_range(start=start_date, end=end_date)
+        weekdays_list = weekdays_index.date.tolist()
+        return weekdays_list
         
     @staticmethod
     async def fetch_missing_prices(ticker: str, missing_dates: List[date]) -> List[TickerPrice]:
