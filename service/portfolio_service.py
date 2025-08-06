@@ -14,11 +14,11 @@ class PortfolioService:
         pf = await PortfolioService.portfolio_calc(json=False)
         pf_last_month = await PortfolioService.portfolio_calc(date=one_month_ago.strftime('%Y-%m-%d'), json=False)
 
-        total_value = (pf['live_price'] * pf['quantity']).sum()
-        total_value_last_month = (pf_last_month['live_price'] * pf_last_month['quantity']).sum()
+        total_value = (pf['live_price'] * pf['quantity']).sum() if not pf.empty else 0
+        total_value_last_month = (pf_last_month['live_price'] * pf_last_month['quantity']).sum() if not pf_last_month.empty else 0
         monthly_pnl = total_value - total_value_last_month
         monthly_pnl_pct = (monthly_pnl / total_value_last_month * 100) if total_value_last_month else 0
-        all_time_returns = pf['pnl'].sum()
+        all_time_returns = pf['pnl'].sum() if not pf.empty else 0
         all_time_returns_pct = (all_time_returns / total_value * 100) if total_value else 0
         cash = 0  # Assuming cash is not tracked in this context
         cash_pct = 0  # Assuming cash percentage is not tracked
@@ -37,11 +37,14 @@ class PortfolioService:
         return summary
 
     @staticmethod
-    async def portfolio_calc(date: Optional[str] = None, json: bool = True) -> List[Dict[str, Any]]:
+    async def portfolio_calc(date: Optional[str] = None, json: bool = True) -> List[Dict[str, Any]] | pd.DataFrame:
         transactions = TransactionRepository.get_all_transactions()
         transactions = [t.model_dump() for t in transactions]
         
         df = pd.DataFrame(transactions)
+        
+        if df.empty:
+            return [] if json else pd.DataFrame()
 
         if date:
             df['transaction_date'] = pd.to_datetime(df['transaction_date'])
