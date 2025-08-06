@@ -139,19 +139,3 @@ class ChartService:
         
         df = df.rename(columns={'price': 'value', 'prev_price': 'prev_value'})
         return df[["ticker", "value", "prev_value", "fixed_change", "percentage_change"]].to_dict(orient="records")
-    
-    @staticmethod
-    async def get_overall_portfolio_month_change() -> Dict[str, float]:
-        """Obtains the overall portfolio month change, including the current value and previous value.
-
-        Returns:
-            Dict[str, float]: Returns a dictionary with the current value and previous value of the overall portfolio.
-        """
-        df = await ChartService.get_all_portfolio_prices_and_values_including_last_month()
-        if df.empty:
-            return {"value": 0.0, "prev_value": 0.0}
-        
-        # Compute the previous value based on the previous month's price and current quantity
-        df["prev_value"] = df["prev_price"] * df["quantity"]
-        totals = df.sum()
-        return {"value": float(totals["value"]), "prev_value": float(totals["prev_value"])}
