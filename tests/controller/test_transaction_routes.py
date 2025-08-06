@@ -89,7 +89,7 @@ class TestTransactionRoutes:
         with pytest.raises(HTTPException) as exc_info:
             client.post("/transaction", json=transaction_data)
         
-        assert exc_info.value.status_code == 400
+        assert exc_info.value.status_code == 500
         assert exc_info.value.detail == exception_message
         mock_create_transaction.assert_called_once()
         

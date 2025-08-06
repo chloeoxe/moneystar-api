@@ -22,6 +22,8 @@ class TestPortfolioRoutes:
             "all_time_returns_pct": 15.0,
             "cash": 2500.00,
             "cash_pct": 20.83,
+            "invested_val": 30000.0,
+            "invested_val_pct": 10.0,
         }
         mock_get_portfolio_summary.return_value = mock_data
         
