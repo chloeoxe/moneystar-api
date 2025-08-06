@@ -11,7 +11,7 @@ class ChartService:
     """Service class to handle chart-related operations."""
 
     @staticmethod
-    def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
+    async def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
         transactions = TransactionRepository.get_all_transactions()
         if not transactions:
             return []
@@ -24,16 +24,16 @@ class ChartService:
         tickers = df_txn["ticker"].unique().tolist()
 
         # Get present date
-        end_date = date.today()
+        today = date.today()
 
         # Fetch only relevant price data once
-        all_prices = PriceRepository.get_prices_for_tickers_before(tickers, end_date)
+        all_prices = PriceRepository.get_prices_for_tickers_before(tickers, today)
         df_prices = pd.DataFrame(all_prices)
         df_prices["date"] = pd.to_datetime(df_prices["date"])
 
         # Determine date range
         start_date = df_prices["date"].min().date()
-        all_dates = pd.date_range(start=start_date, end=end_date, freq="D")
+        all_dates = pd.date_range(start=start_date, end=today, freq="D")
 
         chart_data = []
 
@@ -45,15 +45,31 @@ class ChartService:
             holdings = df_txn_until_d.groupby("ticker")["quantity"].sum()
             holdings = holdings[holdings > 0]
 
+            # Indicate total value as 0 if there are no holdings as of date d
+            if holdings.empty:
+                chart_data.append({"date": d.date().isoformat(), "value": 0.00})
+                continue
+
             total_value = 0.0
 
-            for ticker, qty in holdings.items():
-                # Filter prices for this ticker up to d
-                prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
-                
-                if not prices.empty:
-                    latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
-                    total_value += qty * latest_price
+            if d.date() == today:
+                request = TickersLivePriceRequest(tickers=list(holdings.index))
+                live_prices = await PriceService.fetch_live_prices(request)
+                prices_dict = {p.ticker: p.close for p in live_prices if p.close is not None}
+
+                for ticker, qty in holdings.items():
+                    price = prices_dict.get(ticker)
+                    if price is not None:
+                        total_value += qty * price
+
+            else:
+                for ticker, qty in holdings.items():
+                    # Filter prices for this ticker up to d
+                    prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
+                    
+                    if not prices.empty:
+                        latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
+                        total_value += qty * latest_price
 
             chart_data.append({
                 "date": d.date().isoformat(),
