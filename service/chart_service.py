@@ -8,21 +8,22 @@ from repository.linechart_repository import LinechartRepository
 from service.price_service import PriceService
 from model.price_model import TickersLivePriceRequest
 
+
 class ChartService:
     """Service class to handle chart-related operations."""
 
     @staticmethod
     async def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
         full_data = LinechartRepository.get_linechart_data()
-        chart_data = [{"date": d['date'], "value": d['value']} for d in full_data]
+        chart_data = [{"date": d["date"], "value": d["value"]} for d in full_data]
         return chart_data
-    
+
     @staticmethod
     async def compute_and_store_historical_linechart_values():
         transactions = TransactionRepository.get_all_transactions()
         if not transactions:
             return {}
-        
+
         # Convert transactions to DataFrame
         df_txn = pd.DataFrame([t.model_dump() for t in transactions])
         df_txn["transaction_date"] = pd.to_datetime(df_txn["transaction_date"])
@@ -38,7 +39,9 @@ class ChartService:
 
         # Determine date range
         start_date = df_prices["date"].min().date()
-        all_dates = pd.date_range(start=start_date, end=today - timedelta(days=1), freq="D")
+        all_dates = pd.date_range(
+            start=start_date, end=today - timedelta(days=1), freq="D"
+        )
 
         # Delete old data
         delete_count = LinechartRepository.delete_data_older_than_date(start_date)
@@ -56,12 +59,14 @@ class ChartService:
 
             # Indicate total value as 0 if there are no holdings as of date d
             if holdings.empty:
-                u_count_empty = LinechartRepository.upsert_linechart_data({
-                    "date": d.date().isoformat(),
-                    "value": 0.00,
-                    "is_live": False,
-                    "updated_at": datetime.now().isoformat()
-                })
+                u_count_empty = LinechartRepository.upsert_linechart_data(
+                    {
+                        "date": d.date().isoformat(),
+                        "value": 0.00,
+                        "is_live": False,
+                        "updated_at": datetime.now().isoformat(),
+                    }
+                )
                 upsert_count += u_count_empty
                 continue
 
@@ -69,33 +74,39 @@ class ChartService:
 
             for ticker, qty in holdings.items():
                 # Filter prices for this ticker up to d
-                prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
+                prices = df_prices[
+                    (df_prices["ticker"] == ticker) & (df_prices["date"] <= d)
+                ]
 
                 if not prices.empty:
-                    latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
+                    latest_price = prices.sort_values("date", ascending=False).iloc[0][
+                        "close"
+                    ]
                     total_value += qty * latest_price
 
-            u_count = LinechartRepository.upsert_linechart_data({
-                "date": d.date().isoformat(),
-                "value": round(total_value, 2),
-                "is_live": False,
-                "updated_at": datetime.now().isoformat()
-            })
+            u_count = LinechartRepository.upsert_linechart_data(
+                {
+                    "date": d.date().isoformat(),
+                    "value": round(total_value, 2),
+                    "is_live": False,
+                    "updated_at": datetime.now().isoformat(),
+                }
+            )
             upsert_count += u_count
-        
+
         return {
             "start_date": start_date.isoformat(),
             "end_date": (today - timedelta(days=1)).isoformat(),
             "upsert_count": upsert_count,
-            "delete_count": delete_count
+            "delete_count": delete_count,
         }
-    
+
     @staticmethod
     async def compute_and_store_live_linechart_value():
         transactions = TransactionRepository.get_all_transactions()
         if not transactions:
             return {}
-        
+
         df_txn = pd.DataFrame([t.model_dump() for t in transactions])
         df_txn["transaction_date"] = pd.to_datetime(df_txn["transaction_date"])
 
@@ -105,27 +116,33 @@ class ChartService:
         holdings = holdings[holdings > 0]
 
         if holdings.empty:
-            u_count_empty = LinechartRepository.upsert_linechart_data({
-                "date": today.isoformat(),
-                "value": 0.00,
-                "is_live": True,
-                "updated_at": datetime.now().isoformat()
-            })
+            u_count_empty = LinechartRepository.upsert_linechart_data(
+                {
+                    "date": today.isoformat(),
+                    "value": 0.00,
+                    "is_live": True,
+                    "updated_at": datetime.now().isoformat(),
+                }
+            )
             return {"upsert_count": u_count_empty, "upsert_value": 0.00}
 
         request = TickersLivePriceRequest(tickers=holdings.index.tolist())
         live_prices = await PriceService.fetch_live_prices(request)
         prices_dict = {p.ticker: p.close for p in live_prices if p.close is not None}
 
-        total_value = sum(prices_dict.get(ticker, 0) * qty for ticker, qty in holdings.items())
+        total_value = sum(
+            prices_dict.get(ticker, 0) * qty for ticker, qty in holdings.items()
+        )
 
         # Upsert live value
-        u_count = LinechartRepository.upsert_linechart_data({
-            "date": today.isoformat(),
-            "value": round(total_value, 2),
-            "is_live": True,
-            "updated_at": datetime.now().isoformat()
-        })
+        u_count = LinechartRepository.upsert_linechart_data(
+            {
+                "date": today.isoformat(),
+                "value": round(total_value, 2),
+                "is_live": True,
+                "updated_at": datetime.now().isoformat(),
+            }
+        )
 
         return {"upsert_count": u_count, "upsert_value": round(total_value, 2)}
 
@@ -139,27 +156,31 @@ class ChartService:
         transactions = TransactionRepository.get_all_transactions()
         if not transactions:
             return pd.DataFrame(columns=["ticker", "quantity", "price", "value"])
-        
+
         transactions = [t.model_dump() for t in transactions]
         transactions = pd.DataFrame(transactions)
 
         # Calculate total quantity for each ticker
         ticker_quantities = transactions.groupby("ticker")["quantity"].sum()
         ticker_quantities = ticker_quantities[ticker_quantities > 0]
-        
+
         # Fetch live prices for each ticker
         tickers = ticker_quantities.index.tolist()
-        prices = await PriceService.fetch_live_prices(TickersLivePriceRequest(tickers=tickers))
-        price_data = pd.DataFrame([{"ticker": p.ticker, "price": p.close} for p in prices])
+        prices = await PriceService.fetch_live_prices(
+            TickersLivePriceRequest(tickers=tickers)
+        )
+        price_data = pd.DataFrame(
+            [{"ticker": p.ticker, "price": p.close} for p in prices]
+        )
         price_data.set_index("ticker", inplace=True)
 
         # Calculate total value held for each ticker
         df = pd.DataFrame(ticker_quantities).join(price_data)
-        df.dropna(subset=["price"], inplace=True) 
+        df.dropna(subset=["price"], inplace=True)
         df["value"] = df["quantity"] * df["price"]
-        
+
         return df.reset_index()
-    
+
     @staticmethod
     async def get_portfolio_distribution_data() -> List[Dict[str, Any]]:
         """Obtains the current portfolio distribution data for top 5 holdings and collapses the others into a 'Others' category.
@@ -170,7 +191,7 @@ class ChartService:
         df = await ChartService.get_all_portfolio_prices_and_values()
         if df.empty:
             return []
-        
+
         df = df.sort_values(by="value", ascending=False).reset_index()
 
         # Segregate top 5 holdings
@@ -185,9 +206,11 @@ class ChartService:
             result_df = top_df
 
         return result_df.to_dict(orient="records")
-    
+
     @staticmethod
-    async def get_all_portfolio_prices_and_values_including_last_month() -> pd.DataFrame:
+    async def get_all_portfolio_prices_and_values_including_last_month() -> (
+        pd.DataFrame
+    ):
         """Obtains the current portfolio live prices and values (quantity * prices) for each ticker, along with last month's prices.
 
         Returns:
@@ -195,8 +218,10 @@ class ChartService:
         """
         df = await ChartService.get_all_portfolio_prices_and_values()
         if df.empty:
-            return pd.DataFrame(columns=["ticker", "quantity", "price", "value", "prev_price"])
-        
+            return pd.DataFrame(
+                columns=["ticker", "quantity", "price", "value", "prev_price"]
+            )
+
         today = pd.Timestamp.today().normalize()
         close_window = today - pd.DateOffset(months=1)
         start_window = close_window - pd.DateOffset(days=5)
@@ -205,26 +230,26 @@ class ChartService:
         prev_prices = await PriceRepository.fetch_prev_month_prices(
             tickers=df["ticker"].tolist(),
             start_date=start_window.strftime("%Y-%m-%d"),
-            end_date=close_window.strftime("%Y-%m-%d")
+            end_date=close_window.strftime("%Y-%m-%d"),
         )
 
         # Convert to DataFrame for grouping
         prev_df = pd.DataFrame(prev_prices)
         prev_df["date"] = pd.to_datetime(prev_df["date"])
-        
+
         # For each ticker, get the latest available price before the end_date
         prev_prices_dict = (
             prev_df.sort_values(by=["ticker", "date"], ascending=[True, False])
-              .groupby("ticker")
-              .first()["close"]
-              .to_dict()
+            .groupby("ticker")
+            .first()["close"]
+            .to_dict()
         )
 
         # Merge previous prices into the main dataframe
         df["prev_price"] = df["ticker"].map(prev_prices_dict).fillna(0).round(2)
 
         return df
-    
+
     @staticmethod
     async def get_top_holdings_performance_data() -> List[Dict[str, Any]]:
         """Obtains the top 5 holdings performance data, including their current value, previous value, fixed change, and percentage change.
@@ -232,19 +257,25 @@ class ChartService:
         Returns:
             List[Dict[str, Any]]: Returns a list of dictionaries with ticker, value, previous value, fixed change, and percentage change for the top 5 holdings.
         """
-        df = await ChartService.get_all_portfolio_prices_and_values_including_last_month()
+        df = (
+            await ChartService.get_all_portfolio_prices_and_values_including_last_month()
+        )
         if df.empty:
             return []
-        
+
         # Calculate fixed change and percentage change
         df = df.sort_values(by="value", ascending=False).head(5).reset_index()
         df["fixed_change"] = round(df["price"] - df["prev_price"], 2)
-        df["percentage_change"] = round(df["fixed_change"] / df["prev_price"].replace(0, 1) * 100, 2)
-        df = df.drop('value', axis=1)
-        
-        df = df.rename(columns={'price': 'value', 'prev_price': 'prev_value'})
-        return df[["ticker", "value", "prev_value", "fixed_change", "percentage_change"]].to_dict(orient="records")
-    
+        df["percentage_change"] = round(
+            df["fixed_change"] / df["prev_price"].replace(0, 1) * 100, 2
+        )
+        df = df.drop("value", axis=1)
+
+        df = df.rename(columns={"price": "value", "prev_price": "prev_value"})
+        return df[
+            ["ticker", "value", "prev_value", "fixed_change", "percentage_change"]
+        ].to_dict(orient="records")
+
     @staticmethod
     async def get_portfolio_pnl_chart() -> List[Dict[str, Any]]:
         transactions = TransactionRepository.get_all_transactions()
@@ -276,16 +307,25 @@ class ChartService:
             # Aggregate holdings as of date d
             holdings = df_txn_until_d.groupby("ticker")["quantity"].sum()
             holdings = holdings[holdings > 0].reset_index(name="quantity")
-            buys = df_txn_until_d[df_txn_until_d['quantity'] > 0].copy()
-            buys['weighted_price'] = buys['price'] * buys['quantity']
+            if holdings.empty:
+                continue
+            buys = df_txn_until_d[df_txn_until_d["quantity"] > 0].copy()
+            buys["weighted_price"] = buys["price"] * buys["quantity"]
             avg_price = (
-                buys.groupby('ticker')
-                .agg(total_bought_qty=('quantity', 'sum'), total_weighted_price=('weighted_price', 'sum'))
+                buys.groupby("ticker")
+                .agg(
+                    total_bought_qty=("quantity", "sum"),
+                    total_weighted_price=("weighted_price", "sum"),
+                )
                 .reset_index()
             )
-            avg_price['avg_price'] = avg_price['total_weighted_price'] / avg_price['total_bought_qty'].round(2)
+            avg_price["avg_price"] = avg_price["total_weighted_price"] / avg_price[
+                "total_bought_qty"
+            ].round(2)
 
-            processed = pd.merge(holdings, avg_price[['ticker', 'avg_price']], on=['ticker'], how='left')
+            processed = pd.merge(
+                holdings, avg_price[["ticker", "avg_price"]], on=["ticker"], how="left"
+            )
 
             total_value = 0.0
             cost_value = 0.0
@@ -294,16 +334,22 @@ class ChartService:
                 # Filter prices for this ticker up to d
                 ticker = row["ticker"]
                 qty = row["quantity"]
-                prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
-                
+                prices = df_prices[
+                    (df_prices["ticker"] == ticker) & (df_prices["date"] <= d)
+                ]
+
                 if not prices.empty:
-                    latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
+                    latest_price = prices.sort_values("date", ascending=False).iloc[0][
+                        "close"
+                    ]
                     total_value += qty * latest_price
                 cost_value += qty * row["avg_price"]
 
-            chart_data.append({
-                "date": d.date().isoformat(),
-                "value": round((total_value - cost_value) / cost_value * 100, 2)
-            })
+            chart_data.append(
+                {
+                    "date": d.date().isoformat(),
+                    "value": round((total_value - cost_value) / cost_value * 100, 2),
+                }
+            )
 
         return chart_data
