@@ -1,9 +1,10 @@
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 import pandas as pd
 from typing import List, Dict, Any
 
 from repository.transaction_repository import TransactionRepository
 from repository.price_repository import PriceRepository
+from repository.linechart_repository import LinechartRepository
 from service.price_service import PriceService
 from model.price_model import TickersLivePriceRequest
 
@@ -12,30 +13,37 @@ class ChartService:
 
     @staticmethod
     async def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
+        chart_data = LinechartRepository.get_linechart_data()
+        return chart_data
+    
+    @staticmethod
+    async def compute_and_store_historical_linechart_values():
         transactions = TransactionRepository.get_all_transactions()
         if not transactions:
-            return []
-
+            return {}
+        
         # Convert transactions to DataFrame
         df_txn = pd.DataFrame([t.model_dump() for t in transactions])
         df_txn["transaction_date"] = pd.to_datetime(df_txn["transaction_date"])
 
-        # Extract all tickers used
+        # Get present date and extract all tickers used
+        today = date.today()
         tickers = df_txn["ticker"].unique().tolist()
 
-        # Get present date
-        today = date.today()
-
-        # Fetch only relevant price data once
+        # Fetch price data
         all_prices = PriceRepository.get_prices_for_tickers_before(tickers, today)
         df_prices = pd.DataFrame(all_prices)
         df_prices["date"] = pd.to_datetime(df_prices["date"])
 
         # Determine date range
         start_date = df_prices["date"].min().date()
-        all_dates = pd.date_range(start=start_date, end=today, freq="D")
+        all_dates = pd.date_range(start=start_date, end=today - timedelta(days=1), freq="D")
 
-        chart_data = []
+        # Delete old data
+        delete_count = LinechartRepository.delete_data_older_than_date(start_date)
+
+        # Compute & store chart data
+        upsert_count = 0
 
         for d in all_dates:
             # Get all transactions up to date d
@@ -47,36 +55,78 @@ class ChartService:
 
             # Indicate total value as 0 if there are no holdings as of date d
             if holdings.empty:
-                chart_data.append({"date": d.date().isoformat(), "value": 0.00})
+                u_count_empty = LinechartRepository.upsert_linechart_data({
+                    "date": d.date().isoformat(),
+                    "value": 0.00,
+                    "is_live": False,
+                    "updated_at": datetime.now().isoformat()
+                })
+                upsert_count += u_count_empty
                 continue
 
             total_value = 0.0
 
-            if d.date() == today:
-                request = TickersLivePriceRequest(tickers=list(holdings.index))
-                live_prices = await PriceService.fetch_live_prices(request)
-                prices_dict = {p.ticker: p.close for p in live_prices if p.close is not None}
+            for ticker, qty in holdings.items():
+                # Filter prices for this ticker up to d
+                prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
 
-                for ticker, qty in holdings.items():
-                    price = prices_dict.get(ticker)
-                    if price is not None:
-                        total_value += qty * price
+                if not prices.empty:
+                    latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
+                    total_value += qty * latest_price
 
-            else:
-                for ticker, qty in holdings.items():
-                    # Filter prices for this ticker up to d
-                    prices = df_prices[(df_prices["ticker"] == ticker) & (df_prices["date"] <= d)]
-                    
-                    if not prices.empty:
-                        latest_price = prices.sort_values("date", ascending=False).iloc[0]["close"]
-                        total_value += qty * latest_price
-
-            chart_data.append({
+            u_count = LinechartRepository.upsert_linechart_data({
                 "date": d.date().isoformat(),
-                "value": round(total_value, 2)
+                "value": round(total_value, 2),
+                "is_live": False,
+                "updated_at": datetime.now().isoformat()
             })
+            upsert_count += u_count
+        
+        return {
+            "start_date": start_date.isoformat(),
+            "end_date": (today - timedelta(days=1)).isoformat(),
+            "upsert_count": upsert_count,
+            "delete_count": delete_count
+        }
+    
+    @staticmethod
+    async def compute_and_store_live_linechart_value():
+        transactions = TransactionRepository.get_all_transactions()
+        if not transactions:
+            return {}
+        
+        df_txn = pd.DataFrame([t.model_dump() for t in transactions])
+        df_txn["transaction_date"] = pd.to_datetime(df_txn["transaction_date"])
 
-        return chart_data
+        today = date.today()
+        df_txn_until_today = df_txn[df_txn["transaction_date"] <= pd.to_datetime(today)]
+        holdings = df_txn_until_today.groupby("ticker")["quantity"].sum()
+        holdings = holdings[holdings > 0]
+
+        if holdings.empty:
+            u_count_empty = LinechartRepository.upsert_linechart_data({
+                "date": today.isoformat(),
+                "value": 0.00,
+                "is_live": True,
+                "updated_at": datetime.now().isoformat()
+            })
+            return {"upsert_count": u_count_empty, "upsert_value": 0.00}
+
+        request = TickersLivePriceRequest(tickers=holdings.index.tolist())
+        live_prices = await PriceService.fetch_live_prices(request)
+        prices_dict = {p.ticker: p.close for p in live_prices if p.close is not None}
+
+        total_value = sum(prices_dict.get(ticker, 0) * qty for ticker, qty in holdings.items())
+
+        # Upsert live value
+        u_count = LinechartRepository.upsert_linechart_data({
+            "date": today.isoformat(),
+            "value": round(total_value, 2),
+            "is_live": True,
+            "updated_at": datetime.now().isoformat()
+        })
+
+        return {"upsert_count": u_count, "upsert_value": round(total_value, 2)}
 
     @staticmethod
     async def get_all_portfolio_prices_and_values() -> pd.DataFrame:
