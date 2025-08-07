@@ -13,7 +13,8 @@ class ChartService:
 
     @staticmethod
     async def get_portfolio_linechart_data() -> List[Dict[str, Any]]:
-        chart_data = LinechartRepository.get_linechart_data()
+        full_data = LinechartRepository.get_linechart_data()
+        chart_data = [{"date": d['date'], "value": d['value']} for d in full_data]
         return chart_data
     
     @staticmethod
