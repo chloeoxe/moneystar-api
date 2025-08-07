@@ -8,3 +8,6 @@ venv/
 .env
 
 seed*
+
+# cron log & shell scripts for cron
+jobs/
