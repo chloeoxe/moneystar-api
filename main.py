@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from controller import chart_routes, transaction_routes, portfolio_routes, price_routes
+from controller import chart_routes, transaction_routes, portfolio_routes, price_routes, watchlist_routes
 
 app = FastAPI()
 
@@ -17,6 +17,7 @@ app.include_router(chart_routes.router)
 app.include_router(transaction_routes.router)
 app.include_router(portfolio_routes.router)
 app.include_router(price_routes.router)
+app.include_router(watchlist_routes.router)
 
 @app.get("/")
 async def root():
